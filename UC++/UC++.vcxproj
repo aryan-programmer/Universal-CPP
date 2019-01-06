@@ -155,6 +155,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="byte.hpp" />
     <ClInclude Include="common_mcr.hpp" />
     <ClInclude Include="Interface.hpp" />
     <ClInclude Include="Object.hpp" />

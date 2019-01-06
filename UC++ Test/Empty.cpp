@@ -5,12 +5,12 @@ using namespace std;
 
 UCRegisterClass( Empty );
 
-UCCTor( Empty::Empty )
+UCCtor( Empty::Empty )
 {
 	cout << "0 parameters for " __FUNCTION__ << endl;
 }
 
-UCCTor( Empty::Empty , ( _1 ) )
+UCCtor( Empty::Empty , ( _1 ) )
 {
 	cout << "1 parameter for " __FUNCTION__ << endl;
 }

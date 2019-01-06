@@ -27,12 +27,12 @@ BOOST_PP_IIF(\
 public:\
 BOOST_PP_SEQ_FOR_EACH_I(__UCWriteEachMethod, _, methSeq)\
 protected: \
-auto callImpl( ::UC::String fname , ::UC::GCOVect args ) -> ::UC::PAny{\
+auto callImpl( ::UC::NatString fname , ::UC::NatODeque args ) -> ::UC::PAny{\
 	BOOST_PP_SEQ_FOR_EACH_I(__UCWriteMethodConds, _, methSeq)\
 	return callImplUpChain(fname, args);\
 }\
 public:\
-virtual ::UC::PAny Call( ::UC::String fname , ::UC::GCOVect args ) override{return callImpl(fname, args);}
+virtual ::UC::PAny Call( ::UC::NatString fname , ::UC::NatODeque args ) override{return callImpl(fname, args);}
 
 //#define UCInterface __RealInterface
 // , Name ,
@@ -64,7 +64,7 @@ template<typename... Args>\
 static ::UC::GCP<self> make(Args&&... args){return ::UC::GCP<self>(new self(std::forward<Args>(args)...));}\
 __UCHasExplicitMakers_Decls(name, hasEmptyMaker, seq)\
 public:\
-static ::UC::PAny make_reflective( ::UC::GCOVect args ){\
+static ::UC::PAny make_reflective( ::UC::NatODeque args ){\
 	switch (args.size()){\
 		BOOST_PP_EXPR_IF(hasEmptyMaker, case 0:return ::UC::GCP<self>(new self());)\
 		BOOST_PP_SEQ_FOR_EACH_I(__UCWriteMakerConds, _, seq)\
@@ -78,7 +78,7 @@ public:
 	// or
 #   define UC_OnlyHasEmptyCtor \
 static ::UC::GCP<self> make(){return ::UC::GCP<self>(new self());}\
-static ::UC::PAny make_reflective(::UC::GCOVect args){\
+static ::UC::PAny make_reflective(::UC::NatODeque args){\
 	if(args.size() == 0)return ::UC::PAny(new self());\
 	return nullptr;\
 }
@@ -91,6 +91,13 @@ static ::UC::PAny make_reflective(::UC::GCOVect args){\
 // ,
 //#define Method(name, params) ::UC::PAny name(__UCMethodParams##params)
 #define UC_HasMethods(...) __UCWriteMethods(BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
+#define UC_HasNoMethods \
+protected: \
+forceinline auto callImpl( ::UC::NatString fname , ::UC::NatODeque args ) -> ::UC::PAny{\
+	return callImplUpChain(fname, args);\
+}\
+public:\
+virtual ::UC::PAny Call( ::UC::NatString fname , ::UC::NatODeque args ) override{return callImpl(fname, args);}
 // ,
 
 #define __UCExpandInheritanceHelper(r, data, i, elem) using BOOST_PP_CAT(base, i) = elem;
@@ -112,10 +119,13 @@ private:\
 	};\
 	static __classRegisterer __classRegistererInstance;\
 public:\
-	/*Inherited via ::UC::Object*/\
-	virtual const char * GetTypeName( ) override{\
+	static const char * SGetTypeName( ){\
 		static auto nm = str;\
 		return nm;\
+	}\
+	/*Inherited via ::UC::Object*/\
+	virtual const char * GetTypeName( ) override{\
+		return SGetTypeName( );\
 	}
 
 #define __UCExpandNativeInheritanceHelper(r, data, i, elem) using BOOST_PP_CAT(nbase, i) = elem;
@@ -124,23 +134,34 @@ public:\
 #define __UCExpandNativeInheritanceAsUsingsUC_InheritsNativeClasses(...) BOOST_PP_SEQ_FOR_EACH_I(__UCExpandNativeInheritanceHelper, _, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
 #define __UCExpandNativeInheritanceAsUsingsUC_InheritsNoNativeClasses
 
+/// <summary>
+/// This macro defines a class that inherits UC::Object, it simplifies much of the boiler plate code.
+/// Look at the example files to see how to use it.
+/// </summary>
 #define UCInterface(Name, StrName, Inheritance, NativeInheritance)\
 struct Name: Inheritance __UCExpand##NativeInheritance{\
 	__UCExpandInheritanceAsUsings##Inheritance\
 	__UCExpandNativeInheritanceAsUsings##NativeInheritance\
 	using self = Name;\
 protected:\
-	::UC::PAny callImplUpChain(::UC::String fname , ::UC::GCOVect args){__UCDefine_callUpChainWith##Inheritance}\
-	__UCDefineClassRegistererAndTypename(BOOST_PP_IF(BOOST_PP_SEQ_ELEM(0, StrName), \
-				__ToString(Name), \
-			/*else*/\
-				__ToString(BOOST_PP_SEQ_ELEM(1, StrName))))
+	::UC::PAny callImplUpChain(::UC::NatString fname , ::UC::NatODeque args){__UCDefine_callUpChainWith##Inheritance}\
+	__UCDefineClassRegistererAndTypename(\
+		BOOST_PP_IF(BOOST_PP_SEQ_ELEM(0, StrName), \
+			__ToString(Name), \
+		/*else*/\
+			__ToString(BOOST_PP_SEQ_ELEM(1, StrName))))
 
 
 #define UCEndInterface }
 
-#define ME this->shared_from_this()
-#define WME this->weak_from_this()
+#define UCException(Name) struct Name: public ::UC::Exception{\
+using base = ::UC::Exception;\
+Name(::UC::NatString&& str)noexcept:base(str){}\
+Name(const ::UC::NatString& str)noexcept:base(str){}\
+};
+
+#define ME this->GCFromMe()
+#define WME this->WeakFromMe()
 
 #define __UCMethod(tuple) auto BOOST_PP_TUPLE_ELEM(0, tuple) (\
 BOOST_PP_EXPR_IF(\
@@ -158,6 +179,12 @@ BOOST_PP_EXPR_IF(\
 	)\
 )
 
-#define UCCTor(...) __UCCTor((__VA_ARGS__))
+#define UCCtor(...) __UCCTor((__VA_ARGS__))
 
 #define UCRegisterClass(name) name::__classRegisterer name::__classRegistererInstance{}
+
+
+#define UCAssertNotNull(v) if(v==nullptr)throw PreNullPointerException( "Variable: " __ToString(v) " is nullptr." )
+
+#define UCCast(T, v) ::UC::ObjCastThrowing<T>(v, "Variable: " __ToString(v) " is not of the expected type:" __ToString(T) ".");
+
