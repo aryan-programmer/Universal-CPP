@@ -1,6 +1,8 @@
 #pragma once
-#include "stdafx.h"
+#ifndef __UC__BYTE_SBYTE__HPP__
+#define __UC__BYTE_SBYTE__HPP__
 
+#include "stdafx.h"
 
 #if _HAS_CXX17
 #define ___NODISCARD___ [[nodiscard]]
@@ -249,5 +251,15 @@ namespace UC
 
 	template<class _IntType , std::enable_if_t<std::is_integral_v<_IntType> , int> = 0>
 	___NODISCARD___ forceinline constexpr _IntType to_integer( const sbyte _Arg ) noexcept { return ( static_cast< _IntType >( _Arg ) ); }
+
+	___NODISCARD___ forceinline std::string to_string( byte b ) { return std::to_string( static_cast< int16_t >( b ) ); }
+	___NODISCARD___ forceinline std::string to_string( sbyte b ) { return std::to_string( static_cast< int16_t >( b ) ); }
 }
+
+namespace std
+{
+	___NODISCARD___ forceinline string to_string( UC::byte b ) { return to_string( static_cast< int16_t >( b ) ); }
+	___NODISCARD___ forceinline string to_string( UC::sbyte b ) { return to_string( static_cast< int16_t >( b ) ); }
+}
+#endif // !__UC__BYTE_SBYTE__HPP__
 

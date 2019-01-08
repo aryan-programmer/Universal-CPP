@@ -1,5 +1,8 @@
 #pragma once
+#ifndef __UC__INTERNAL__COMMON_MACROS__HPP
+#define __UC__INTERNAL__COMMON_MACROS__HPP
 #include <boost\preprocessor\cat.hpp>
+#include <boost\preprocessor\repeat.hpp>
 #include <boost\preprocessor\expr_if.hpp>
 #include <boost\preprocessor\seq\elem.hpp>
 #include <boost\preprocessor\comma_if.hpp>
@@ -7,7 +10,6 @@
 #include <boost\preprocessor\variadic\size.hpp>
 #include <boost\preprocessor\seq\for_each_i.hpp>
 #include <boost\preprocessor\variadic\to_seq.hpp>
-#include <boost\preprocessor\repeat.hpp>
 #include <boost\preprocessor\comparison\equal.hpp>
 
 #define __ToStringHHHHHHHHHH(v) #v
@@ -21,9 +23,5 @@
 #define __ToStringHH(v) __ToStringHHH(v)
 #define __ToStringH(v) __ToStringHH(v)
 #define __ToString(v) __ToStringH(v)
+#endif // !__UC__INTERNAL__COMMON_MACROS__HPP
 
-#define __DoubleOpenBrace(...) ()
-
-#define EXPAND(...) __VA_ARGS__
-#define EMPTY()
-#define DEFER(x) x EMPTY()

@@ -12,7 +12,7 @@ Like Objective-C, UC++ supports GC, but only ARC (Automatic Reference Counting) 
 
 ### <span style="color:lightgreen">√ Reflection ← ~~Most~~ <u>***All***</u> languages with automatic garbage collection.</span>
 
-Use `UC::PAny` variables and `UC::Object::Call` as 
+Use `UC::P_Any` variables and `UC::Object::Call` as 
 
 ```C++
 ?variable?->Call(?function-name?, {?args?})
@@ -24,13 +24,15 @@ static UC::Object::CreateInstance
 ```
 to create instances of <span style="color:pink">UCInterfaces</span> as
 
-`UC::Object::CreateInstance(?class-name?, {?args?})` .
+```C++
+UC::Object::CreateInstance(?class-name?, {?args?})
+```
 
 ------
 
 ### <span style="color:lightgreen">√ Dynamic Typing ← Python</span>
 
-Use `UC::PAny` variables and `UC::Object::Call` as 
+Use `UC::P_Any` variables and `UC::Object::Call` as 
 
 ```C++
 ?variable?->Call(?function-name?, {?args?})
