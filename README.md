@@ -3,14 +3,14 @@
 
 [TOC]
 
-## <span style="color:red">× To implement</span> || <span style="color:lightgreen">√ Implemented</span> Features ← From Languages
+## <span style="color:red">× To implement</span> || <span style="color:green">√ Implemented</span> Features ← From Languages
 
-### <span style="color:lightgreen">√ Garbage Collection  ← Objective-C</span>
+### <span style="color:green">√ Garbage Collection  ← Objective-C</span>
 Like Objective-C, UC++ supports GC, but only ARC (Automatic Reference Counting) style GC is supported, like in Objective-C where ARC is the recommended method.
 
 ------
 
-### <span style="color:lightgreen">√ Reflection ← ~~Most~~ <u>***All***</u> languages with automatic garbage collection.</span>
+### <span style="color:green">√ Reflection ← ~~Most~~ <u>***All***</u> languages with automatic garbage collection.</span>
 
 Use `UC::P_Any` variables and `UC::Object::Call` as 
 
@@ -22,7 +22,7 @@ to call methods using reflection, and use
 ```C++
 static UC::Object::CreateInstance
 ```
-to create instances of <span style="color:pink">UCInterfaces</span> as
+to create instances of <span style="color:purple">UCInterfaces</span> as
 
 ```C++
 UC::Object::CreateInstance(?class-name?, {?args?})
@@ -30,7 +30,7 @@ UC::Object::CreateInstance(?class-name?, {?args?})
 
 ------
 
-### <span style="color:lightgreen">√ Dynamic Typing ← Python</span>
+### <span style="color:green">√ Dynamic Typing ← Python</span>
 
 Use `UC::P_Any` variables and `UC::Object::Call` as 
 
@@ -53,12 +53,12 @@ UC::ObjCast<?TypeToCastTo?>(?variable?)
 ------
 
 
-### <span style="color:skyblue">√ Multiple Class Inheritance ← C++</span>
+### <span style="color:blue">√ Multiple Class Inheritance ← C++</span>
 From C++!!
 
 ------
 
-### <span style="color:skyblue">√ Block Structured Programming ← Swift</span>
+### <span style="color:blue">√ Block Structured Programming ← Swift</span>
 Already in C++.
 
 
@@ -68,6 +68,7 @@ Already in C++.
 The pre-macro substitution state:
 
 ```C++
+//Empty.hpp
 struct NEmpty
 {
 	void NativeBaseFunction( );
@@ -77,7 +78,7 @@ UCInterface( Empty ,
 			 UC_WhereTypenameIsRealName ,
 			 UC_InheritsUCClasses( UC::Object ) ,
 			 UC_InheritsNativeClasses( NEmpty )
-);
+)
 UC_HasExplicitCtors( Empty , UC_AlsoHasEmptyMaker , ( _1 ) );
 UC_HasMethods(
 ( Do ) ,
@@ -87,18 +88,22 @@ UC_HasMethods(
 
 void NativeFunction( );
 
-UCEndInterface;
+UCEndInterface( Empty );
+
+//Empty.cpp
+#include <iostream>
+#include "Empty.hpp"
 
 using namespace std;
 
 UCRegisterClass( Empty );
 
-UCCTor( Empty::Empty )
+UCCtor( Empty::Empty )
 {
 	cout << "0 parameters for " __FUNCTION__ << endl;
 }
 
-UCCTor( Empty::Empty , ( _1 ) )
+UCCtor( Empty::Empty , ( _1 ) )
 {
 	cout << "1 parameter for " __FUNCTION__ << endl;
 }
@@ -130,21 +135,36 @@ void NEmpty::NativeBaseFunction( ) { std::cout << "From native function in base:
 The post-macro substitution state:
 
 ```C++
+//Empty.hpp
 struct NEmpty
 {
 	void NativeBaseFunction( );
 };
 
-struct Empty : UC::Object , NEmpty
+struct Empty : UC::Object , NEmpty , ::UC::EnableGCPtrFromMe<Empty>
 {
 	using base0 = UC::Object;
 	using nbase0 = NEmpty;
 	using self = Empty;
+	using pself = ::UC::GCP<self>;
+	using wself = ::UC::WeakPtr<self>;
+	using EGCPFM = ::UC::EnableGCPtrFromMe<Empty>;
 protected:
-	::UC::PAny callImplUpChain( ::UC::String fname , ::UC::GCOVect args )
+	auto callImplUpChain( const ::UC::NatString& fname , const ::UC::NatODeque& args ) -> ::UC::P_Any
 	{
-		auto res0 = base0::callImpl( fname , args );
-		if ( res0 ) return res0;
+		try
+		{
+			auto res0 = base0::callImpl( fname , args );
+			if ( res0 ) return res0;
+		}
+		catch ( const ::UC::NoSuchFunction_Exception& ) { };
+		throw ::UC::NoSuchConstructor_Exception(
+			::UC::ConcatNatStrings(
+				::UC::NatString( "No function for type \"" "Empty" "\" with name \"" ) ,
+				fname ,
+				"\" that takes in " ,
+				std::to_string( args.size( ) ) ,
+				" parameters." ) );
 	}
 private:
 	struct __classRegisterer
@@ -156,90 +176,105 @@ private:
 	};
 	static __classRegisterer __classRegistererInstance;
 public:
-	virtual const char * GetTypeName( ) override
+	static const ::UC::NatString& SGetTypeName( )
 	{
-		static auto nm = "Empty";
+		static auto nm = ::UC::NatString( "Empty" );
 		return nm;
-	};
-	template<typename... Args>
-	static ::UC::GCP<self> make( Args&&... args )
+	}
+	virtual const ::UC::NatString& GetTypeName( ) const override
+	{
+		return SGetTypeName( );
+	}
+	template<typename... Args>static ::UC::GCP<self> Make( Args&&... args )
 	{
 		return ::UC::GCP<self>( new self( std::forward<Args>( args )... ) );
 	}
 protected:
+protected:
 	Empty( );
-	Empty( ::UC::PAny _1 );
+	Empty( ::UC::P_Any _1 );
 public:
-	static ::UC::PAny make_reflective( ::UC::GCOVect args )
+	static ::UC::P_Any make_reflective( const ::UC::NatODeque& args )
 	{
 		switch ( args.size( ) )
 		{
 		case 0:return ::UC::GCP<self>( new self( ) );
 		case 1: return ::UC::GCP<self>( new self( args[ 0 ] ) );
-		default: return nullptr;
+		default: throw ::UC::NoSuchConstructor_Exception(
+			::UC::ConcatNatStrings(
+				::UC::NatString( "No constructor for type \"" ) ,
+				SGetTypeName( ) ,
+				"\" that takes in " ,
+				std::to_string( args.size( ) ) ,
+				" parameters." ) );
 		}
-	}
+	};
 public:
-	auto Do( ) -> ::UC::PAny;
-	auto Do( ::UC::PAny _1 ) -> ::UC::PAny;
-	auto Do( ::UC::PAny _1 , ::UC::PAny _2 ) -> ::UC::PAny;
+	virtual auto Do( ) -> ::UC::P_Any;
+	virtual auto Do( ::UC::P_Any _1 ) -> ::UC::P_Any;
+	virtual auto Do( ::UC::P_Any _1 , ::UC::P_Any _2 ) -> ::UC::P_Any;
 protected:
-	auto callImpl( ::UC::String fname , ::UC::GCOVect args ) -> ::UC::PAny
+	auto callImpl( const ::UC::NatString& fname , const ::UC::NatODeque& args ) -> ::UC::P_Any
 	{
-		if ( fname == "Do" && args.size( ) == 0 ) { return Do( ); }
-		if ( fname == "Do" && args.size( ) == 1 ) { return Do( args[ 0 ] ); }
-		if ( fname == "Do" && args.size( ) == 2 ) { return Do( args[ 0 ] , args[ 1 ] ); }
+		const auto& argsLen = args.size( );
+		if ( fname == "Do" && argsLen == 0 ) { return this->Do( ); }
+		if ( fname == "Do" && argsLen == 1 ) { return this->Do( args[ 0 ] ); }
+		if ( fname == "Do" && argsLen == 2 ) { return this->Do( args[ 0 ] , args[ 1 ] ); }
 		return callImplUpChain( fname , args );
 	}
 public:
-	virtual ::UC::PAny Call( ::UC::String fname , ::UC::GCOVect args ) override
+	virtual ::UC::P_Any Call( const ::UC::NatString& fname , const ::UC::NatODeque& args ) override
 	{
 		return callImpl( fname , args );
 	};
 	void NativeFunction( );
 };
+using P_Empty = ::UC::GCP<Empty>;
+using W_Empty = ::UC::WeakPtr<Empty>;
+
+//Empty.cpp
+#include <iostream>
+#include "Empty.hpp"
 
 using namespace std;
+
 Empty::__classRegisterer Empty::__classRegistererInstance {};
 
 Empty::Empty( )
 {
-	cout << "0 parameters for "  __FUNCTION__ << endl;
+	cout << "0 parameters for " __FUNCTION__ << endl;
 }
 
-Empty::Empty( ::UC::PAny _1 )
+Empty::Empty( ::UC::P_Any _1 )
 {
 	cout << "1 parameter for "  __FUNCTION__ << endl;
 }
 
-auto Empty::Do( ) -> ::UC::PAny
+
+auto Empty::Do( ) -> ::UC::P_Any
 {
-	cout << "0 parameters for "  __FUNCTION__ << endl; return nullptr;
+	cout << "0 parameters for "  __FUNCTION__ << endl;
+	return nullptr;
 }
 
-auto Empty::Do( ::UC::PAny _1 ) -> ::UC::PAny
+auto Empty::Do( ::UC::P_Any _1 ) -> ::UC::P_Any
 {
 	cout << "1 parameter for "  __FUNCTION__ << endl;
 	return nullptr;
 }
 
-auto Empty::Do( ::UC::PAny _1 , ::UC::PAny _2 ) -> ::UC::PAny
+auto Empty::Do( ::UC::P_Any _1 , ::UC::P_Any _2 ) -> ::UC::P_Any
 {
 	cout << "2 parameter for "  __FUNCTION__ << endl;
 	return nullptr;
 }
 
-void Empty::NativeFunction( )
-{
-	std::cout << "From native function:"  __FUNCTION__ << std::endl;
-}
+void Empty::NativeFunction( ) { std::cout << "From native function:" __FUNCTION__ << std::endl; }
 
-void NEmpty::NativeBaseFunction( )
-{
-	std::cout << "From native function in base:"  __FUNCTION__ << std::endl;
-}
+void NEmpty::NativeBaseFunction( ) { std::cout << "From native function in base:" __FUNCTION__ << std::endl; }
 ```
 
 
 
 See no surprises, no magic code, after macro substitution it's just plain C++.
+

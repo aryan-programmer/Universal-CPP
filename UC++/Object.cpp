@@ -4,9 +4,20 @@
 namespace UC
 {
 	Object::~Object( ) = default;
+	NatString Object::ToString( ) const { return GetTypeName( ); }
+	int64_t Object::GetHashCode( ) const { return Hash( ME ); }
 	P_Any Object::CreateInstance( const NatString& className , const NatODeque& args )
 	{
-		return getClassCtors( ).at( className )( args );
+		decltype( auto ) map = getClassCtors( );
+		auto itr = map.find( className );
+		if ( itr != map.end( ) ) return itr->second( args );
+		else
+			throw UC::NoSuchRegisteredType_Exception( UC::ConcatNatStrings(
+				"There is no *registered* type with the name \"" ,
+				className ,
+				"\", let alone a *registered* constructor for it that takes in " ,
+				std::to_string( args.size( ) ) ,
+				" parameters." ) );
 	}
 	Object::Object( ) = default;
 	void Object::addConstructor( const NatString& className , P_Any( *ctor )( const NatODeque& args ) )
@@ -21,13 +32,41 @@ namespace UC
 		return classCtors;
 	}
 
+	UCRegisterClass( Int16 );
+	UCRegisterClass( Int32 );
+	UCRegisterClass( Int64 );
+	UCRegisterClass( UInt16 );
+	UCRegisterClass( UInt32 );
+	UCRegisterClass( UInt64 );
+
+	UCRegisterClass( Float );
+	UCRegisterClass( Double );
+
+	UCRegisterClass( Byte );
+	UCRegisterClass( SByte );
+	UCRegisterClass( Bool );
+
+	UCRegisterClass( String );
+
 	UCMethod( String::ULength ) { return Int64::Make( NLength( ) ); }
 	UCMethod( String::UContains , ( s ) ) { return Bool::Make( NContains( UCCast( String , s ) ) ); }
 	UCMethod( String::UEndsWith , ( s ) ) { return Bool::Make( NEndsWith( UCCast( String , s ) ) ); }
-	UCMethod( String::UStartsWith , ( s ) ) 
+	UCMethod( String::UStartsWith , ( s ) )
 	{ return Bool::Make( NStartsWith( UCCast( String , s ) ) ); }
 	UCMethod( String::UEquals , ( s ) ) { return Bool::Make( NEquals( UCCast( String , s ) ) ); }
 	UCMethod( String::USubstring , ( startIdx ) ) { return NSubstring( UCAsUInt64( startIdx ) ); }
 	UCMethod( String::USubstring , ( startIdx , count ) )
 	{ return NSubstring( UCAsUInt64( startIdx ) , UCAsUInt64( count ) ); }
+
+	UCMethod( String::Get , ( Idx ) ) { return Byte::Make( static_cast< byte >( value[ UCAsUInt64( Idx ) ] ) ); }
+	UCMethod( String::OpAdd , ( _1 ) ) { return Concat( ME , UCCast( String , _1 ) ); }
+	UCMethod( String::OpAdd , ( _1 , _2 ) ) { return Concat( ME , UCCast( String , _1 ) , UCCast( String , _2 ) ); }
+	UCMethod( String::OpAdd , ( _1 , _2 , _3 ) ) { return Concat( ME , UCCast( String , _1 ) , UCCast( String , _2 ) , UCCast( String , _3 ) ); }
+	UCMethod( String::OpAdd , ( _1 , _2 , _3 , _4 ) ) { return Concat( ME , UCCast( String , _1 ) , UCCast( String , _2 ) , UCCast( String , _3 ) , UCCast( String , _4 ) ); }
+	UCMethod( String::OpAdd , ( _1 , _2 , _3 , _4 , _5 ) ) { return Concat( ME , UCCast( String , _1 ) , UCCast( String , _2 ) , UCCast( String , _3 ) , UCCast( String , _4 ) , UCCast( String , _5 ) ); }
+	UCMethod( String::OpAdd , ( _1 , _2 , _3 , _4 , _5 , _6 ) ) { return Concat( ME , UCCast( String , _1 ) , UCCast( String , _2 ) , UCCast( String , _3 ) , UCCast( String , _4 ) , UCCast( String , _5 ) , UCCast( String , _6 ) ); }
+	UCMethod( String::OpAdd , ( _1 , _2 , _3 , _4 , _5 , _6 , _7 ) ) { return Concat( ME , UCCast( String , _1 ) , UCCast( String , _2 ) , UCCast( String , _3 ) , UCCast( String , _4 ) , UCCast( String , _5 ) , UCCast( String , _6 ) , UCCast( String , _7 ) ); }
+	UCMethod( String::OpAdd , ( _1 , _2 , _3 , _4 , _5 , _6 , _7 , _8 ) ) { return Concat( ME , UCCast( String , _1 ) , UCCast( String , _2 ) , UCCast( String , _3 ) , UCCast( String , _4 ) , UCCast( String , _5 ) , UCCast( String , _6 ) , UCCast( String , _7 ) , UCCast( String , _8 ) ); }
+	UCMethod( String::OpAdd , ( _1 , _2 , _3 , _4 , _5 , _6 , _7 , _8 , _9 ) ) { return Concat( ME , UCCast( String , _1 ) , UCCast( String , _2 ) , UCCast( String , _3 ) , UCCast( String , _4 ) , UCCast( String , _5 ) , UCCast( String , _6 ) , UCCast( String , _7 ) , UCCast( String , _8 ) , UCCast( String , _9 ) ); }
+	UCMethod( String::OpAdd , ( _1 , _2 , _3 , _4 , _5 , _6 , _7 , _8 , _9 , _10 ) ) { return Concat( ME , UCCast( String , _1 ) , UCCast( String , _2 ) , UCCast( String , _3 ) , UCCast( String , _4 ) , UCCast( String , _5 ) , UCCast( String , _6 ) , UCCast( String , _7 ) , UCCast( String , _8 ) , UCCast( String , _9 ) , UCCast( String , _10 ) ); }
 }

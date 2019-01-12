@@ -5,9 +5,9 @@
 #include "stdafx.h"
 
 #if _HAS_CXX17
-#define ___NODISCARD___ [[nodiscard]]
+#define ___UC_NODISCARD___ [[nodiscard]]
 #else
-#define ___NODISCARD___
+#define ___UC_NODISCARD___
 #endif /* _HAS_NODISCARD */
 
 namespace UC
@@ -17,37 +17,37 @@ namespace UC
 
 	template<class _IntType ,
 		std::enable_if_t<std::is_integral_v<_IntType> , int> = 0>
-		___NODISCARD___ forceinline constexpr sbyte operator<<( const sbyte _Arg , const _IntType _Shift ) noexcept
+		___UC_NODISCARD___ forceinline constexpr sbyte operator<<( const sbyte _Arg , const _IntType _Shift ) noexcept
 	{
 		return ( static_cast< sbyte >( static_cast< char >( static_cast< int >( _Arg ) << _Shift ) ) );
 	}
 
 	template<class _IntType ,
 		std::enable_if_t<std::is_integral_v<_IntType> , int> = 0>
-		___NODISCARD___ forceinline constexpr sbyte operator>>( const sbyte _Arg , const _IntType _Shift ) noexcept
+		___UC_NODISCARD___ forceinline constexpr sbyte operator>>( const sbyte _Arg , const _IntType _Shift ) noexcept
 	{
 		return ( static_cast< sbyte >( static_cast< char >( static_cast< int >( _Arg ) >> _Shift ) ) );
 	}
 
-	___NODISCARD___ forceinline constexpr sbyte operator|( const sbyte _Left , const sbyte _Right ) noexcept
+	___UC_NODISCARD___ forceinline constexpr sbyte operator|( const sbyte _Left , const sbyte _Right ) noexcept
 	{
 		return ( static_cast< sbyte >( static_cast< char >(
 			static_cast< int >( _Left ) | static_cast< int >( _Right ) ) ) );
 	}
 
-	___NODISCARD___ forceinline constexpr sbyte operator&( const sbyte _Left , const sbyte _Right ) noexcept
+	___UC_NODISCARD___ forceinline constexpr sbyte operator&( const sbyte _Left , const sbyte _Right ) noexcept
 	{
 		return ( static_cast< sbyte >( static_cast< char >(
 			static_cast< int >( _Left ) & static_cast< int >( _Right ) ) ) );
 	}
 
-	___NODISCARD___ forceinline constexpr sbyte operator^( const sbyte _Left , const sbyte _Right ) noexcept
+	___UC_NODISCARD___ forceinline constexpr sbyte operator^( const sbyte _Left , const sbyte _Right ) noexcept
 	{
 		return ( static_cast< sbyte >( static_cast< char >(
 			static_cast< int >( _Left ) ^ static_cast< int >( _Right ) ) ) );
 	}
 
-	___NODISCARD___ forceinline constexpr sbyte operator~( const sbyte _Arg ) noexcept
+	___UC_NODISCARD___ forceinline constexpr sbyte operator~( const sbyte _Arg ) noexcept
 	{	// bitwise NOT, every static_cast is intentional
 		return ( static_cast< sbyte >( static_cast< char >( ~static_cast< int >( _Arg ) ) ) );
 	}
@@ -66,42 +66,42 @@ namespace UC
 
 	template<class _IntType ,
 		std::enable_if_t<std::is_integral_v<_IntType> , int> = 0>
-		___NODISCARD___ forceinline constexpr sbyte operator+( const sbyte _Arg , const _IntType _Shift ) noexcept
+		___UC_NODISCARD___ forceinline constexpr sbyte operator+( const sbyte _Arg , const _IntType _Shift ) noexcept
 	{
 		return ( static_cast< sbyte >( static_cast< char >( static_cast< int >( _Arg ) + _Shift ) ) );
 	}
 
 	template<class _IntType ,
 		std::enable_if_t<std::is_integral_v<_IntType> , int> = 0>
-		___NODISCARD___ forceinline constexpr sbyte operator-( const sbyte _Arg , const _IntType _Shift ) noexcept
+		___UC_NODISCARD___ forceinline constexpr sbyte operator-( const sbyte _Arg , const _IntType _Shift ) noexcept
 	{
 		return ( static_cast< sbyte >( static_cast< char >( static_cast< int >( _Arg ) - _Shift ) ) );
 	}
 
-	___NODISCARD___ forceinline constexpr sbyte operator/( const sbyte _Left , const sbyte _Right ) noexcept
+	___UC_NODISCARD___ forceinline constexpr sbyte operator/( const sbyte _Left , const sbyte _Right ) noexcept
 	{
 		return ( static_cast< sbyte >( static_cast< char >(
 			static_cast< int >( _Left ) / static_cast< int >( _Right ) ) ) );
 	}
 
-	___NODISCARD___ forceinline constexpr sbyte operator*( const sbyte _Left , const sbyte _Right ) noexcept
+	___UC_NODISCARD___ forceinline constexpr sbyte operator*( const sbyte _Left , const sbyte _Right ) noexcept
 	{
 		return ( static_cast< sbyte >( static_cast< char >(
 			static_cast< int >( _Left ) * static_cast< int >( _Right ) ) ) );
 	}
 
-	___NODISCARD___ forceinline constexpr sbyte operator%( const sbyte _Left , const sbyte _Right ) noexcept
+	___UC_NODISCARD___ forceinline constexpr sbyte operator%( const sbyte _Left , const sbyte _Right ) noexcept
 	{
 		return ( static_cast< sbyte >( static_cast< char >(
 			static_cast< int >( _Left ) % static_cast< int >( _Right ) ) ) );
 	}
 
-	___NODISCARD___ forceinline constexpr sbyte operator-( const sbyte _Arg ) noexcept
+	___UC_NODISCARD___ forceinline constexpr sbyte operator-( const sbyte _Arg ) noexcept
 	{
 		return ( static_cast< sbyte >( static_cast< char >( -static_cast< int >( _Arg ) ) ) );
 	}
 
-	___NODISCARD___ forceinline constexpr sbyte operator+( const sbyte _Arg ) noexcept
+	___UC_NODISCARD___ forceinline constexpr sbyte operator+( const sbyte _Arg ) noexcept
 	{
 		return ( static_cast< sbyte >( static_cast< char >( +static_cast< int >( _Arg ) ) ) );
 	}
@@ -197,42 +197,42 @@ namespace UC
 
 	template<class _IntType ,
 		std::enable_if_t<std::is_integral_v<_IntType> , int> = 0>
-		___NODISCARD___ forceinline constexpr byte operator+( const byte _Arg , const _IntType _Shift ) noexcept
+		___UC_NODISCARD___ forceinline constexpr byte operator+( const byte _Arg , const _IntType _Shift ) noexcept
 	{
 		return ( static_cast< byte >( static_cast< char >( static_cast< int >( _Arg ) + _Shift ) ) );
 	}
 
 	template<class _IntType ,
 		std::enable_if_t<std::is_integral_v<_IntType> , int> = 0>
-		___NODISCARD___ forceinline constexpr byte operator-( const byte _Arg , const _IntType _Shift ) noexcept
+		___UC_NODISCARD___ forceinline constexpr byte operator-( const byte _Arg , const _IntType _Shift ) noexcept
 	{
 		return ( static_cast< byte >( static_cast< char >( static_cast< int >( _Arg ) - _Shift ) ) );
 	}
 
-	___NODISCARD___ forceinline constexpr byte operator/( const byte _Left , const byte _Right ) noexcept
+	___UC_NODISCARD___ forceinline constexpr byte operator/( const byte _Left , const byte _Right ) noexcept
 	{
 		return ( static_cast< byte >( static_cast< char >(
 			static_cast< int >( _Left ) / static_cast< int >( _Right ) ) ) );
 	}
 
-	___NODISCARD___ forceinline constexpr byte operator*( const byte _Left , const byte _Right ) noexcept
+	___UC_NODISCARD___ forceinline constexpr byte operator*( const byte _Left , const byte _Right ) noexcept
 	{
 		return ( static_cast< byte >( static_cast< char >(
 			static_cast< int >( _Left ) * static_cast< int >( _Right ) ) ) );
 	}
 
-	___NODISCARD___ forceinline constexpr byte operator%( const byte _Left , const byte _Right ) noexcept
+	___UC_NODISCARD___ forceinline constexpr byte operator%( const byte _Left , const byte _Right ) noexcept
 	{
 		return ( static_cast< byte >( static_cast< char >(
 			static_cast< int >( _Left ) % static_cast< int >( _Right ) ) ) );
 	}
 
-	___NODISCARD___ forceinline constexpr byte operator-( const byte _Arg ) noexcept
+	___UC_NODISCARD___ forceinline constexpr byte operator-( const byte _Arg ) noexcept
 	{
 		return ( static_cast< byte >( static_cast< char >( -static_cast< int >( _Arg ) ) ) );
 	}
 
-	___NODISCARD___ forceinline constexpr byte operator+( const byte _Arg ) noexcept
+	___UC_NODISCARD___ forceinline constexpr byte operator+( const byte _Arg ) noexcept
 	{
 		return ( static_cast< byte >( static_cast< char >( +static_cast< int >( _Arg ) ) ) );
 	}
@@ -250,16 +250,34 @@ namespace UC
 	forceinline constexpr byte& operator%=( byte& _Left , const byte _Right ) noexcept { return ( _Left = _Left % _Right ); }
 
 	template<class _IntType , std::enable_if_t<std::is_integral_v<_IntType> , int> = 0>
-	___NODISCARD___ forceinline constexpr _IntType to_integer( const sbyte _Arg ) noexcept { return ( static_cast< _IntType >( _Arg ) ); }
+	___UC_NODISCARD___ forceinline constexpr _IntType to_integer( const sbyte _Arg ) noexcept { return ( static_cast< _IntType >( _Arg ) ); }
 
-	___NODISCARD___ forceinline std::string to_string( byte b ) { return std::to_string( static_cast< int16_t >( b ) ); }
-	___NODISCARD___ forceinline std::string to_string( sbyte b ) { return std::to_string( static_cast< int16_t >( b ) ); }
+	___UC_NODISCARD___ forceinline std::string to_string( byte b ) { return std::to_string( static_cast< int16_t >( b ) ); }
+	___UC_NODISCARD___ forceinline std::string to_string( sbyte b ) { return std::to_string( static_cast< int16_t >( b ) ); }
 }
 
 namespace std
 {
-	___NODISCARD___ forceinline string to_string( UC::byte b ) { return to_string( static_cast< int16_t >( b ) ); }
-	___NODISCARD___ forceinline string to_string( UC::sbyte b ) { return to_string( static_cast< int16_t >( b ) ); }
+	___UC_NODISCARD___ forceinline string to_string( UC::byte b ) { return to_string( static_cast< int16_t >( b ) ); }
+	___UC_NODISCARD___ forceinline string to_string( UC::sbyte b ) { return to_string( static_cast< int16_t >( b ) ); }
+
+	template<>
+	struct hash<UC::byte>
+	{
+		typedef UC::byte argument_type;
+		typedef size_t result_type;
+		___UC_NODISCARD___ size_t operator()( const UC::byte v ) const noexcept
+		{return ( hash<unsigned char>()( static_cast< unsigned char >( v ) ) );}
+	};
+
+	template<>
+	struct hash<UC::sbyte>
+	{
+		typedef UC::sbyte argument_type;
+		typedef size_t result_type;
+		___UC_NODISCARD___ size_t operator()( const UC::sbyte v ) const noexcept
+		{return ( hash<char>()( static_cast< char >( v ) ) );}
+	};
 }
 #endif // !__UC__BYTE_SBYTE__HPP__
 

@@ -5,9 +5,66 @@
 #include "Interface.hpp"
 #include "byte.hpp"
 #include <sstream>
+#include <iostream>
+#include <boost\type_traits\remove_reference.hpp>
+#include <boost\type_traits\is_detected.hpp>
+#include <boost\type_traits\add_const.hpp>
+#include <boost\type_traits\add_reference.hpp>
+#include <boost\type_traits\remove_cv_ref.hpp>
 
 namespace UC
 {
+	template<class T> boost::add_reference_t<boost::add_const<T>> cdeclref( ) noexcept;
+	template<typename T> using HasGHC = decltype( cdeclref<T>( ).GetHashCode( ) );
+	template<typename T> using HasPGHC = decltype( ( *cdeclref<T>( ) ).GetHashCode( ) );
+
+	template<typename... Args>
+	size_t CombineHashCodes( Args&&... hashCodes )
+	{
+		size_t hash1 = ( 0x1505UL << 0x10UL ) + 0x1505UL;
+		size_t hash2 = hash1;
+
+		size_t i = 0UL;
+		auto f = [ &hash1 , &hash2 , &i ] ( auto&& hashCode )
+		{
+			if ( i % 0x2 == 0x0 )
+				hash1 = ( ( hash1 << 0x5 ) + hash1 + ( hash1 >> 0x1b ) ) ^ hashCode;
+			else
+				hash2 = ( ( hash2 << 0x5 ) + hash2 + ( hash2 >> 0x1b ) ) ^ hashCode;
+
+			++i;
+		};
+		( f( hashCodes ) , ... );
+
+		return hash1 + ( hash2 * 0x5d588b65 );
+	}
+
+	struct _Hasher
+	{
+		template<typename T>
+		forceinline size_t operator()( const T& val ) const
+		{ return ( *this )( val , std::bool_constant<boost::is_detected_v<HasGHC , boost::remove_cv_ref_t<T>>>( ) ); }
+
+	private:
+		template<typename T>
+		forceinline size_t operator()( const T& val , std::true_type ) const
+		{ return val.GetHashCode( ); }
+
+		template<typename T>
+		forceinline size_t operator()( const T& val , std::false_type ) const
+		{ return std::hash<boost::remove_cv_ref_t<T>>( )( val ); }
+	};
+
+	template<typename T>
+	struct Hasher
+	{
+		typedef T argument_type;
+		typedef size_t result_type;
+		___UC_NODISCARD___ size_t operator()( const T v ) const noexcept { return _Hasher( )( v ); }
+	};
+
+	template<typename T> forceinline size_t Hash( const T& val ) { return _Hasher( )( val ); }
+
 	class Object;
 
 	/// <summary>
@@ -39,12 +96,12 @@ namespace UC
 	class Exception : public std::exception
 	{
 		using base = std::exception;
-		NatString str;
+		const NatString str;
 	public:
 		Exception( NatString&& str ) noexcept : base( ) , str( str ) { }
 		Exception( const NatString& str ) noexcept : base( ) , str( str ) { }
 		virtual char const* what( ) const override { return str.c_str( ); }
-		const NatString& Message( ) { return str; }
+		const NatString& Message( ) const { return str; }
 	};
 
 	/// <summary>
@@ -78,6 +135,21 @@ namespace UC
 	/// This exception is thrown for invalid use of expired WeakPtr object.
 	/// </summary>
 	UCException( BadWeakPtrException );
+
+	/// <summary>
+	/// This exception is thrown when invalid parameters are specified for function reflection.
+	/// </summary>
+	UCException( NoSuchFunction_Exception );
+
+	/// <summary>
+	/// This exception is thrown when invalid parameters are specified for reflective construction.
+	/// </summary>
+	UCException( NoSuchConstructor_Exception );
+
+	/// <summary>
+	/// This exception is thrown when the name of a non-existent type is specified for reflective construction.
+	/// </summary>
+	UCBasedException( NoSuchRegisteredType_Exception , NoSuchConstructor_Exception );
 #pragma endregion
 
 #pragma region Smart Pointers
@@ -124,9 +196,9 @@ namespace UC
 		forceinline bool operator==( nullptr_t )const noexcept { return ptr == nullptr; }
 
 		template<typename T2>
-		forceinline bool operator ==( const GCPtr<T2>& ptr2 )const noexcept { return ptr == ptr2.ptr; }
+		forceinline bool RefEq( const GCPtr<T2>& ptr2 )const noexcept { return ptr == ptr2.ptr; }
 		template<typename T2>
-		forceinline bool operator !=( const GCPtr<T2>& ptr2 )const noexcept { return ptr == ptr2.ptr; }
+		forceinline bool RefNotEq( const GCPtr<T2>& ptr2 )const noexcept { return ptr == ptr2.ptr; }
 
 		template<typename T>
 		friend class WeakPtr;
@@ -223,15 +295,18 @@ namespace UC
 	public:
 		virtual ~Object( );
 
-		virtual const char* GetTypeName( ) = 0;
+		virtual const NatString& GetTypeName( ) const = 0;
 		virtual P_Any Call( const NatString& fname , const NatODeque& args ) = 0;
+		virtual NatString ToString( ) const;
+		virtual int64_t GetHashCode( ) const;
 
 		Object( Object&& ) = delete;
 		Object& operator=( Object&& ) = delete;
 
 		static P_Any CreateInstance( const NatString& className , const NatODeque& args );
-	protected:
+
 		using EGCPFM = ::UC::EnableGCPtrFromMe<Object>;
+	protected:
 		Object( );
 		forceinline P_Any callImpl( const NatString& fname , const NatODeque& args ) { return nullptr; }
 		static void addConstructor( const NatString& className , P_Any( *ctor )( const NatODeque& args ) );
@@ -259,6 +334,28 @@ namespace UC
 		return ret;
 	}
 
+	template<typename T , typename T2>
+	GCP<T> ObjCastThrowingNatStr( const GCP<T2>& v , const NatString& msg )
+	{
+		auto ret = ObjCast<T>( v );
+		if ( ret == nullptr )throw InvalidCastException( msg );
+		return ret;
+	}
+
+	template<typename T>
+	GCP<T> asNotNull( const GCP<T>& v , const char* msg )
+	{
+		if ( v == nullptr )throw PreNullPointerException( msg );
+		return v;
+	}
+
+	template<typename T>
+	GCP<T> asNotNull( GCP<T> v , const char* msg )
+	{
+		if ( v == nullptr )throw PreNullPointerException( msg );
+		return std::move( v );
+	}
+
 #pragma region Integral Placeholder Interfaces
 #define __DEFINE_integralPlaceHolderInterfaces(name, underlyingType)\
 UCInterface( name , UC_WhereTypenameIs( "UC::" __ToString(name) ) , UC_InheritsUCClasses( Object ) , UC_InheritsNoNativeClasses );\
@@ -267,9 +364,12 @@ UCInterface( name , UC_WhereTypenameIs( "UC::" __ToString(name) ) , UC_InheritsU
 public:\
 	using int_t = underlyingType;\
 	const int_t value;\
-	forceinline name(int_t value=0):value{value }{}\
+	forceinline name():value{ }{}\
+	virtual NatString ToString( ) const{return std::to_string(value);}\
+	virtual int64_t GetHashCode( ) const{return Hash(value);}\
+	forceinline name(int_t value):value{value }{}\
 	forceinline static GCP<name> Make( int_t value ) { return GCP<name>( new name(value) ); }\
-UCEndInterface
+UCEndInterface(name)
 
 	__DEFINE_integralPlaceHolderInterfaces( Int16 , int16_t );
 	__DEFINE_integralPlaceHolderInterfaces( Int32 , int32_t );
@@ -290,9 +390,11 @@ UCInterface( name , UC_WhereTypenameIs( "UC::" __ToString(name) ) , UC_InheritsU
 	UC_HasNoMethods;\
 public:\
 	const underlyingType value;\
+	virtual NatString ToString( ) const{return std::to_string(value);}\
+	virtual int64_t GetHashCode( ) const{return Hash(value);}\
 	forceinline name(underlyingType value=default_):value{value }{}\
 	forceinline static GCP<name> Make( underlyingType value ) { return GCP<name>( new name(value) ); }\
-UCEndInterface
+UCEndInterface(name)
 
 	__DEFINE_floatingPointPlaceHolderInterfaces( Float , float , 0.0f );
 	__DEFINE_floatingPointPlaceHolderInterfaces( Double , double , 0.0 );
@@ -309,9 +411,11 @@ UCInterface( name , UC_WhereTypenameIs( "UC::" __ToString(name) ) , UC_InheritsU
 public:\
 	const underlyingType value;\
 	forceinline name():value{}{}\
+	virtual NatString ToString( ) const{return std::to_string(value);}\
+	virtual int64_t GetHashCode( ) const{return Hash(value);}\
 	forceinline name(underlyingType value):value{value }{}\
 	forceinline static GCP<name> Make( underlyingType value ) { return GCP<name>( new name(value) ); }\
-UCEndInterface
+UCEndInterface(name)
 
 	__DEFINE_byteTypePlaceHolderInterfaces( Byte , byte );
 	__DEFINE_byteTypePlaceHolderInterfaces( SByte , sbyte );
@@ -379,7 +483,19 @@ static curr as##name(const P_Any& it , const char* msg){\
 		( UStartsWith , ( s ) ) ,
 		( UEquals , ( s ) ) ,
 		( USubstring , ( startIdx ) ) ,
-		( USubstring , ( startIdx , count ) ) );
+		( USubstring , ( startIdx , count ) ) ,
+		( Get , ( Idx ) ) ,
+		( OpAdd , ( _1 ) ) ,
+		( OpAdd , ( _1 , _2 ) ) ,
+		( OpAdd , ( _1 , _2 , _3 ) ) ,
+		( OpAdd , ( _1 , _2 , _3 , _4 ) ) ,
+		( OpAdd , ( _1 , _2 , _3 , _4 , _5 ) ) ,
+		( OpAdd , ( _1 , _2 , _3 , _4 , _5 , _6 ) ) ,
+		( OpAdd , ( _1 , _2 , _3 , _4 , _5 , _6 , _7 ) ) ,
+		( OpAdd , ( _1 , _2 , _3 , _4 , _5 , _6 , _7 , _8 ) ) ,
+		( OpAdd , ( _1 , _2 , _3 , _4 , _5 , _6 , _7 , _8 , _9 ) ) ,
+		( OpAdd , ( _1 , _2 , _3 , _4 , _5 , _6 , _7 , _8 , _9 , _10 ) )
+	);
 public:
 	using pcself = GCP<const self>;
 	using str_t = NatString;
@@ -407,7 +523,10 @@ public:
 	forceinline const_reverse_iterator crbegin( ) const { return std::crbegin( value ); }
 	forceinline const_reverse_iterator crend( ) const { return std::crend( value ); }
 
-	forceinline const char& operator[]( size_t idx ) const { return value[ ( size_t ) idx ]; }
+	NatString ToString( ) const override { return value; }
+	int64_t GetHashCode( ) const override { return Hash( value ); }
+
+	forceinline const char& Get( size_t idx ) const { return value[ ( size_t ) idx ]; }
 
 	forceinline int64_t NLength( ) const noexcept { return value.length( ); }
 
@@ -451,8 +570,37 @@ private:
 	template<typename Iter> String( Iter beg , Iter end ) : value( beg , end ) { }
 	forceinline String( const char* value_ ) : value( value_ ) { }
 	forceinline String( const char* value_ , size_t startIndex , size_t length ) : value( value_ , startIndex , length ) { }
-	UCEndInterface;
+	UCEndInterface( String );
 #pragma endregion
+
+	struct _HashGCP
+	{
+		template<typename T>
+		forceinline size_t operator()( const T& val ) const
+		{ return ( *this )( val , std::bool_constant<std::is_base_of_v<Object , typename T::element_type>>( ) ); }
+
+	private:
+		template<typename T>
+		forceinline size_t operator()( const T& val , std::true_type ) const
+		{ return val->GetHashCode( ); }
+
+		template<typename T>
+		forceinline size_t operator()( const T& val , std::false_type ) const
+		{ return std::hash<std::shared_ptr<typename T::element_type>>( )( val.ptr ); }
+	};
+}
+
+namespace std
+{
+	template<typename T>
+	struct hash<UC::GCPtr<T>>
+	{
+		typedef UC::GCPtr<T> argument_type;
+		typedef size_t result_type;
+		___UC_NODISCARD___ size_t operator()( const UC::GCPtr<T> v ) const noexcept { return UC::_HashGCP( )( v ); }
+	};
+
+	template<typename T> inline ostream& operator<<( ostream& o , const UC::GCPtr<T>& p )
+	{ return o << p->ToString( ); }
 }
 #endif // !__UC__OBJECT__HPP__
-
