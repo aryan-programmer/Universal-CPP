@@ -32,21 +32,21 @@ namespace UC
 		return classCtors;
 	}
 
-	UCRegisterClass( Int16 );
-	UCRegisterClass( Int32 );
-	UCRegisterClass( Int64 );
-	UCRegisterClass( UInt16 );
-	UCRegisterClass( UInt32 );
-	UCRegisterClass( UInt64 );
+	UCRegister( Int16 );
+	UCRegister( Int32 );
+	UCRegister( Int64 );
+	UCRegister( UInt16 );
+	UCRegister( UInt32 );
+	UCRegister( UInt64 );
 
-	UCRegisterClass( Float );
-	UCRegisterClass( Double );
+	UCRegister( Float );
+	UCRegister( Double );
 
-	UCRegisterClass( Byte );
-	UCRegisterClass( SByte );
-	UCRegisterClass( Bool );
+	UCRegister( Byte );
+	UCRegister( SByte );
+	UCRegister( Bool );
 
-	UCRegisterClass( String );
+	UCRegister( String );
 
 	UCMethod( String::ULength ) { return Int64::Make( NLength( ) ); }
 	UCMethod( String::UContains , ( s ) ) { return Bool::Make( NContains( UCCast( String , s ) ) ); }

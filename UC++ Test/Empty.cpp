@@ -3,7 +3,7 @@
 
 using namespace std;
 
-UCRegisterClass( Empty );
+UCRegister( Empty );
 
 UCCtor( Empty::Empty )
 {

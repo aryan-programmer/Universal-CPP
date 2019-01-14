@@ -81,8 +81,8 @@ static ::UC::P_Any make_reflective( const ::UC::NatODeque& args ){\
 	}\
 }
 
-#   define UC_IsAbstract(name)
-#   define UC_IsAbstractAndHasCtors(name, hasEmptyMaker,...) protected: __UCHasExplicitMakers_Decls(name, hasEmptyMaker, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) public:
+#   define UC_IsAbstract
+#   define UC_IsAbstractAndHasCtors(name, hasEmptyCtor,...) protected: __UCHasExplicitMakers_Decls(name, hasEmptyCtor, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) public:
 	// or
 #   define UC_OnlyHasEmptyCtor \
 static ::UC::GCP<self> Make(){return ::UC::GCP<self>(new self());}\
@@ -99,8 +99,8 @@ static ::UC::P_Any make_reflective(const ::UC::NatODeque& args){\
 	throw ::UC::NoSuchConstructor_Exception(::UC::ConcatNatStrings(::UC::NatString("No constructor for type \""),SGetTypeName(),"\" that takes in ", std::to_string(args.size()), " parameters."));\
 }
 	// or
-#define UC_HasNoEmptyMaker 0
-#define UC_AlsoHasEmptyMaker 1
+#define UC_HasNoEmptyCtor 0
+#define UC_AlsoHasEmptyCtor 1
 #   define UC_HasExplicitCtors(name, hasEmptyMaker,...) __UCHasExplicitMakers(name, hasEmptyMaker, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
 // )
 
@@ -155,10 +155,13 @@ public:\
 #define __UCExpandNativeInheritanceAsUsingsUC_InheritsNativeClasses(...) BOOST_PP_SEQ_FOR_EACH_I(__UCExpandNativeInheritanceHelper, _, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
 #define __UCExpandNativeInheritanceAsUsingsUC_InheritsNoNativeClasses
 
-/// <summary>
-/// This macro defines a interface that inherits UC::Object, it simplifies much of the boiler plate code.
-/// Look at the example files to see how to use it.
-/// </summary>
+// UCInterface is a convenience macro that simplifies much of the complexity and boiler-plate code.
+// The first parameter is the name of the UCInterface, here Empty.
+// The second parameter is the type-name of the UCInterface, there are 2 valid values for this UC_WhereTypenameIsRealName which assigns the same type-name as the name, or UC_WhereTypenameIs( "?name?" ) where ?name? will become the **_registered_** name of the UCInterface used for reflection.
+// The third parameter is the group of UC++ Interfaces the UCInterface inherits, pass in the UC++ Interfaces as wrapped in UC_InheritsUCClasses(?classes?). Each parameter will be expanded into a convenience *using* declaration, corresponding to the 0 based index of the inherited UC++ Interface, e.g. base0, base1, base2, base3,...
+// The fourth parameter is the group of native classes the UCInterface inherits, pass in the classes as wrapped in UC_InheritsNativeClasses(?classes?). Each parameter will be expanded into a convenience *using* declaration, corresponding to the 0 based index of the inherited class, e.g. nbase0, nbase1, nbase2, nbase3,... . To inherit no native classes pass in UC_InheritsNoNativeClasses as this parameter.
+// The fifth parameter is "*optional*" and can include post modifiers like final, which prevent the UC++ Interface from being inherited.
+// Be careful there is a vast difference in the name and the type-name. The name represents the struct identifier of the UCInterface. The type-name is a string that is the return value of T::SGetTypeName() & t.GetTypeName(), also it is the **_registered_** name of the UCInterface, used for reflection.
 #define UCInterface(Name, StrName, Inheritance, NativeInheritance, ...)\
 struct Name __VA_ARGS__ : Inheritance __UCExpand##NativeInheritance, ::UC::EnableGCPtrFromMe<Name>{\
 	__UCExpandInheritanceAsUsings##Inheritance\
@@ -200,7 +203,7 @@ Name(const ::UC::NatString& str)noexcept:base(str){}\
 
 #define UCCtor(...) __UCCTor((__VA_ARGS__))
 
-#define UCRegisterClass(name) name::__classRegisterer name::__classRegistererInstance{}
+#define UCRegister(name) name::__classRegisterer name::__classRegistererInstance{}
 
 
 #define UCAsNotNull(v) ::UC::asNotNull(v, "Variable: \"" __ToString(v) "\" is nullptr." )
@@ -267,4 +270,6 @@ public:\
 #define UCEndTemplateInterface(Name, TypeParams) };\
 __UCExpandAsTemplate(TypeParams) using P_##Name = ::UC::GCP<Name<__UCExpandAsCondensedParameters TypeParams>>;\
 __UCExpandAsTemplate(TypeParams) using W_##Name = ::UC::WeakPtr<Name<__UCExpandAsCondensedParameters TypeParams>>
+
+#define UCC(var, fname, ...) var->Call(fname, __VA_ARGS__)
 #endif // !__UC__INTERFACE_MACROS__HPP__

@@ -5,7 +5,7 @@
 #include "Interface.hpp"
 #include "byte.hpp"
 #include <sstream>
-#include <iostream>
+#include <exception>
 #include <boost\type_traits\remove_reference.hpp>
 #include <boost\type_traits\is_detected.hpp>
 #include <boost\type_traits\add_const.hpp>
@@ -453,8 +453,8 @@ static curr as##name(const P_Any& it , const char* msg){\
 	throw InvalidCastException(msg);\
 }
 	__DEFINE_asTForLower( int16_t , Int16 , Int16 , Byte , SByte );
-	__DEFINE_asTForLower( int32_t , Int32 , Int32 , UInt16 , UInt16 , Byte , SByte );
-	__DEFINE_asTForLower( int64_t , Int64 , Int64 , UInt32 , Int32 , UInt16 , UInt16 , Byte , SByte );
+	__DEFINE_asTForLower( int32_t , Int32 , Int32 , UInt16 , Int16 , Byte , SByte );
+	__DEFINE_asTForLower( int64_t , Int64 , Int64 , UInt32 , Int32 , UInt16 , Int16 , Byte , SByte );
 	__DEFINE_asTForLower( uint16_t , UInt16 , UInt16 , Byte );
 	__DEFINE_asTForLower( uint32_t , UInt32 , UInt32 , UInt16 , Byte );
 	__DEFINE_asTForLower( uint64_t , UInt64 , UInt64 , UInt32 , UInt16 , Byte );
@@ -462,8 +462,8 @@ static curr as##name(const P_Any& it , const char* msg){\
 	__DEFINE_asTForLower( sbyte , SByte , SByte );
 
 
-	__DEFINE_asTForLower( float , Float , UInt64 , Int64 , Int64 , UInt32 , Int32 , UInt16 , UInt16 , Byte , SByte );
-	__DEFINE_asTForLower( double , Double , Float , UInt64 , Int64 , Int64 , UInt32 , Int32 , UInt16 , UInt16 , Byte , SByte );
+	__DEFINE_asTForLower( float , Float , UInt64 , Int64 , Int64 , UInt32 , Int32 , UInt16 , Int16 , Byte , SByte );
+	__DEFINE_asTForLower( double , Double , Float , UInt64 , Int64 , Int64 , UInt32 , Int32 , Int16 , UInt16 , Byte , SByte );
 #undef __DEFINE_asTForLowerHelper
 #undef __DEFINE_asTForLower
 #pragma endregion

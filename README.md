@@ -1,3 +1,5 @@
+![UC++ Logo in Iosevka SS03](E:\C++ Projects\UC++\Logo.png)
+
 # UC++(Universal C++)
 
 
@@ -12,13 +14,20 @@ Like Objective-C, UC++ supports GC, but only ARC (Automatic Reference Counting) 
 
 ### <span style="color:green">√ Reflection ← ~~Most~~ <u>***All***</u> languages with automatic garbage collection.</span>
 
-Use `UC::P_Any` variables and `UC::Object::Call` as 
+Use `UC::P_Any` variables and `UC::Object::Call` as:
 
 ```C++
 ?variable?->Call(?function-name?, {?args?})
 ```
 
-to call methods using reflection, and use 
+or use <span style="color:purple">UCC</span> as:
+
+```C++
+UCC(?variable?, ?function-name?, {?args?})
+```
+
+to call methods using reflection. And use
+
 ```C++
 static UC::Object::CreateInstance
 ```
@@ -32,13 +41,19 @@ UC::Object::CreateInstance(?class-name?, {?args?})
 
 ### <span style="color:green">√ Dynamic Typing ← Python</span>
 
-Use `UC::P_Any` variables and `UC::Object::Call` as 
+Use `UC::P_Any` variables and `UC::Object::Call` as:
 
 ```C++
 ?variable?->Call(?function-name?, {?args?})
 ```
 
-to call methods using achieve ***Dynamic Typing***. Yes, the methods to use for reflection and dynamic typing are the same. 
+or use <span style="color:purple">UCC</span> as:
+
+```C++
+UCC(?variable?, ?function-name?, {?args?})
+```
+
+to call methods using ***Dynamic Typing***. Yes, the methods to use for reflection and dynamic typing are the same. 
 
 For casting to higher types use 
 ```C++
@@ -63,7 +78,12 @@ Already in C++.
 
 
 
-## Conversion & Macro substitution
+# [Documentation](.\DOCUMENTATION.md)
+
+
+
+
+# Conversion, Macro substitution
 
 The pre-macro substitution state:
 
@@ -89,14 +109,17 @@ UC_HasMethods(
 void NativeFunction( );
 
 UCEndInterface( Empty );
+```
 
+
+```C++
 //Empty.cpp
 #include <iostream>
 #include "Empty.hpp"
 
 using namespace std;
 
-UCRegisterClass( Empty );
+UCRegister( Empty );
 
 UCCtor( Empty::Empty )
 {
@@ -158,21 +181,16 @@ protected:
 			if ( res0 ) return res0;
 		}
 		catch ( const ::UC::NoSuchFunction_Exception& ) { };
-		throw ::UC::NoSuchConstructor_Exception(
-			::UC::ConcatNatStrings(
+		throw ::UC::NoSuchConstructor_Exception(::UC::ConcatNatStrings(
 				::UC::NatString( "No function for type \"" "Empty" "\" with name \"" ) ,
-				fname ,
-				"\" that takes in " ,
-				std::to_string( args.size( ) ) ,
+				fname , "\" that takes in " , std::to_string( args.size( ) ) ,
 				" parameters." ) );
 	}
 private:
 	struct __classRegisterer
 	{
 		__classRegisterer( )
-		{
-			::UC::Object::addConstructor( "Empty" , &self::make_reflective );
-		}
+		{::UC::Object::addConstructor( "Empty" , &self::make_reflective );}
 	};
 	static __classRegisterer __classRegistererInstance;
 public:
@@ -181,14 +199,9 @@ public:
 		static auto nm = ::UC::NatString( "Empty" );
 		return nm;
 	}
-	virtual const ::UC::NatString& GetTypeName( ) const override
-	{
-		return SGetTypeName( );
-	}
+	virtual const ::UC::NatString& GetTypeName( ) const override{return SGetTypeName( );}
 	template<typename... Args>static ::UC::GCP<self> Make( Args&&... args )
-	{
-		return ::UC::GCP<self>( new self( std::forward<Args>( args )... ) );
-	}
+	{return ::UC::GCP<self>( new self( std::forward<Args>( args )... ) );}
 protected:
 protected:
 	Empty( );
@@ -201,11 +214,8 @@ public:
 		case 0:return ::UC::GCP<self>( new self( ) );
 		case 1: return ::UC::GCP<self>( new self( args[ 0 ] ) );
 		default: throw ::UC::NoSuchConstructor_Exception(
-			::UC::ConcatNatStrings(
-				::UC::NatString( "No constructor for type \"" ) ,
-				SGetTypeName( ) ,
-				"\" that takes in " ,
-				std::to_string( args.size( ) ) ,
+			::UC::ConcatNatStrings(::UC::NatString( "No constructor for type \"" ) ,
+				SGetTypeName( ) , "\" that takes in " , std::to_string( args.size( ) ) ,
 				" parameters." ) );
 		}
 	};
@@ -223,15 +233,15 @@ protected:
 		return callImplUpChain( fname , args );
 	}
 public:
-	virtual ::UC::P_Any Call( const ::UC::NatString& fname , const ::UC::NatODeque& args ) override
-	{
-		return callImpl( fname , args );
-	};
+	virtual ::UC::P_Any Call( const ::UC::NatString& fname , const ::UC::NatODeque& args ) override {return callImpl( fname , args );};
 	void NativeFunction( );
 };
 using P_Empty = ::UC::GCP<Empty>;
 using W_Empty = ::UC::WeakPtr<Empty>;
+```
 
+
+```C++
 //Empty.cpp
 #include <iostream>
 #include "Empty.hpp"
@@ -274,7 +284,4 @@ void Empty::NativeFunction( ) { std::cout << "From native function:" __FUNCTION_
 void NEmpty::NativeBaseFunction( ) { std::cout << "From native function in base:" __FUNCTION__ << std::endl; }
 ```
 
-
-
-See no surprises, no magic code, after macro substitution it's just plain C++.
-
+See no surprises, no magic code, after macro substitution it's just plain C++. 
