@@ -6,29 +6,30 @@ namespace UC
 	Object::~Object( ) = default;
 	NatString Object::ToString( ) const { return GetTypeName( ); }
 	int64_t Object::GetHashCode( ) const { return Hash( ME ); }
-	P_Any Object::CreateInstance( const NatString& className , const NatODeque& args )
+	P_Any Object::CreateInstance( const NatString& className , const NatOVector& args )
 	{
 		decltype( auto ) map = getClassCtors( );
-		auto itr = map.find( className );
+		auto findName = className.substr( 0 , className.find( "<" ) );
+		auto itr = map.find( findName );
 		if ( itr != map.end( ) ) return itr->second( args );
 		else
 			throw UC::NoSuchRegisteredType_Exception( UC::ConcatNatStrings(
 				"There is no *registered* type with the name \"" ,
-				className ,
+				findName ,
 				"\", let alone a *registered* constructor for it that takes in " ,
 				std::to_string( args.size( ) ) ,
 				" parameters." ) );
 	}
 	Object::Object( ) = default;
-	void Object::addConstructor( const NatString& className , P_Any( *ctor )( const NatODeque& args ) )
+	void Object::addConstructor( const NatString& className , P_Any( *ctor )( const NatOVector& args ) )
 	{
 		if ( getClassCtors( ).emplace( className , ctor ).second == false )
 			throw RepeatingClassNameException( std::move( className ) );
 	}
 
-	std::unordered_map<NatString , P_Any( *)( const NatODeque& args )>& Object::getClassCtors( )
+	std::unordered_map<NatString , P_Any( *)( const NatOVector& args )>& Object::getClassCtors( )
 	{
-		static std::unordered_map<NatString , P_Any( *)( const NatODeque& args )> classCtors {};
+		static std::unordered_map<NatString , P_Any( *)( const NatOVector& args )> classCtors {};
 		return classCtors;
 	}
 
@@ -69,4 +70,9 @@ namespace UC
 	UCMethod( String::OpAdd , ( _1 , _2 , _3 , _4 , _5 , _6 , _7 , _8 ) ) { return Concat( ME , UCCast( String , _1 ) , UCCast( String , _2 ) , UCCast( String , _3 ) , UCCast( String , _4 ) , UCCast( String , _5 ) , UCCast( String , _6 ) , UCCast( String , _7 ) , UCCast( String , _8 ) ); }
 	UCMethod( String::OpAdd , ( _1 , _2 , _3 , _4 , _5 , _6 , _7 , _8 , _9 ) ) { return Concat( ME , UCCast( String , _1 ) , UCCast( String , _2 ) , UCCast( String , _3 ) , UCCast( String , _4 ) , UCCast( String , _5 ) , UCCast( String , _6 ) , UCCast( String , _7 ) , UCCast( String , _8 ) , UCCast( String , _9 ) ); }
 	UCMethod( String::OpAdd , ( _1 , _2 , _3 , _4 , _5 , _6 , _7 , _8 , _9 , _10 ) ) { return Concat( ME , UCCast( String , _1 ) , UCCast( String , _2 ) , UCCast( String , _3 ) , UCCast( String , _4 ) , UCCast( String , _5 ) , UCCast( String , _6 ) , UCCast( String , _7 ) , UCCast( String , _8 ) , UCCast( String , _9 ) , UCCast( String , _10 ) ); }
+
+	UCRegisterTemplate( O_Deque );
+	UCRegisterTemplate( O_Vector );
+	UCRegisterTemplate( O_BstDeque );
+	UCRegisterTemplate( O_BstVector );
 }

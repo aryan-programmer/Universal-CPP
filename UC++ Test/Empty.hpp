@@ -3,7 +3,7 @@
 
 struct NEmpty
 {
-	void NativeBaseFunction( );
+	int NativeBaseFunction( );
 };
 
 UCInterface( Empty ,
@@ -18,7 +18,7 @@ UC_HasMethods(
 ( Do , ( _1 , _2 ) )
 );
 
-void NativeFunction( );
+int NativeFunction( );
 
 UCEndInterface( Empty );
 

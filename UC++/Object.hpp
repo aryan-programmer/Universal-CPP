@@ -6,6 +6,9 @@
 #include "byte.hpp"
 #include <sstream>
 #include <exception>
+#include <stdexcept>
+#include <boost\container\vector.hpp>
+#include <boost\container\deque.hpp>
 #include <boost\type_traits\remove_reference.hpp>
 #include <boost\type_traits\is_detected.hpp>
 #include <boost\type_traits\add_const.hpp>
@@ -35,6 +38,26 @@ namespace UC
 			++i;
 		};
 		( f( hashCodes ) , ... );
+
+		return hash1 + ( hash2 * 0x5d588b65 );
+	}
+
+	template<typename TColl>
+	size_t CombineHashCodesInColl( const TColl& coll )
+	{
+		size_t hash1 = ( 0x1505UL << 0x10UL ) + 0x1505UL;
+		size_t hash2 = hash1;
+
+		size_t i = 0UL;
+		for ( const auto& hashCode : coll )
+		{
+			if ( i % 0x2 == 0x0 )
+				hash1 = ( ( hash1 << 0x5 ) + hash1 + ( hash1 >> 0x1b ) ) ^ hashCode;
+			else
+				hash2 = ( ( hash2 << 0x5 ) + hash2 + ( hash2 >> 0x1b ) ) ^ hashCode;
+
+			++i;
+		};
 
 		return hash1 + ( hash2 * 0x5d588b65 );
 	}
@@ -150,6 +173,13 @@ namespace UC
 	/// This exception is thrown when the name of a non-existent type is specified for reflective construction.
 	/// </summary>
 	UCBasedException( NoSuchRegisteredType_Exception , NoSuchConstructor_Exception );
+
+	/// <summary>
+	/// This exception is thrown when invalid parameters are specified for collection indexing.
+	/// </summary>
+	UCException( IndexOutOfRangeException );
+
+	UCException( ValueNotFoundException );
 #pragma endregion
 
 #pragma region Smart Pointers
@@ -278,12 +308,16 @@ namespace UC
 	// W_Any = Weak pointer to Any (emc2) value
 	using W_Any = WeakPtr<Object>;
 
+	// NatVector = Native Vector
+	template<typename T>
+	using NatVector = std::vector<T>;
+
 	// NatDeque = Native Deque (Deque = Double Ended Queue)
 	template<typename T>
 	using NatDeque = std::deque<T>;
 
-	// NatODeque = Native Object Deque (Deque = Double Ended Queue)
-	using NatODeque = std::deque<P_Any>;
+	// NatOVector = Native Object Vector
+	using NatOVector = std::vector<P_Any>;
 
 	/// <summary>
 	/// This is the base class of all <seealso cref="UCInterface"/>s.
@@ -295,23 +329,25 @@ namespace UC
 	public:
 		virtual ~Object( );
 
-		virtual const NatString& GetTypeName( ) const = 0;
-		virtual P_Any Call( const NatString& fname , const NatODeque& args ) = 0;
+		static const NatString& SGetTypeName( ) { static NatString s = "UC::Object"; return s; }
+		virtual const NatString& GetTypeName( ) const { return SGetTypeName( ); };
+		virtual P_Any Call( const NatString& fname , const NatOVector& args ) = 0;
 		virtual NatString ToString( ) const;
 		virtual int64_t GetHashCode( ) const;
 
 		Object( Object&& ) = delete;
 		Object& operator=( Object&& ) = delete;
 
-		static P_Any CreateInstance( const NatString& className , const NatODeque& args );
+		static P_Any CreateInstance( const NatString& className , const NatOVector& args );
+
+		static void addConstructor( const NatString& className , P_Any( *ctor )( const NatOVector& args ) );
 
 		using EGCPFM = ::UC::EnableGCPtrFromMe<Object>;
 	protected:
 		Object( );
-		forceinline P_Any callImpl( const NatString& fname , const NatODeque& args ) { return nullptr; }
-		static void addConstructor( const NatString& className , P_Any( *ctor )( const NatODeque& args ) );
+		forceinline P_Any callImpl( const NatString& fname , const NatOVector& args ) { return nullptr; }
 	private:
-		static std::unordered_map<NatString , P_Any( *)( const NatODeque& args )>& getClassCtors( );
+		static std::unordered_map<NatString , P_Any( *)( const NatOVector& args )>& getClassCtors( );
 	};
 
 	/// <summary>
@@ -573,6 +609,261 @@ private:
 	UCEndInterface( String );
 #pragma endregion
 
+#define __DEFINE_Container(name, underly_t,startBrace,endBrace, emplaceFront)\
+template<typename _T>\
+struct name UCTemplateInterface( name , ( _T ) , UC_WhereTypenameIs( "UC::" __ToString(name) ) , UC_InheritsUCClasses( Object ) , UC_InheritsNoNativeClasses );\
+	UC_HasExplicitCtors( name , UC_AlsoHasEmptyCtor , ( size ) );\
+	UC_HasMethods(\
+		( OpGet , ( idx ) ) ,\
+		( OpGet , ( start , end ) ) ,\
+		( OpSet , ( idx , value ) ) ,\
+		( OpLen ) ,\
+		( OpAddFront , ( val ) ) ,\
+		( OpAdd , ( val ) ) ,\
+		( OpAddBefore , ( idx , val ) ) ,\
+		( OpClear ) ,\
+		( OpReverse , ( from , to ) ) ,\
+		( OpReverse ) ,\
+		( OpResize , ( idx ) ) ,\
+		( OpTrimExcess ) ,\
+		( OpRemAt , ( idx ) )\
+	);\
+\
+public:\
+	using T = GCP<_T>;\
+\
+	using col_t = underly_t<T>;\
+	col_t coll;\
+	typedef typename col_t::value_type value_type;\
+	typedef typename col_t::reference reference;\
+	typedef typename col_t::const_reference const_reference;\
+	typedef typename col_t::iterator iterator;\
+	typedef typename col_t::const_iterator const_iterator;\
+	typedef typename col_t::reverse_iterator reverse_iterator;\
+	typedef typename col_t::const_reverse_iterator const_reverse_iterator;\
+	typedef typename col_t::size_type size_type;\
+	typedef typename col_t::difference_type difference_type;\
+\
+	forceinline iterator begin( ) { return		coll.begin( ); }\
+	forceinline const_iterator begin( ) const { return coll.begin( ); }\
+	forceinline iterator end( ) { return		 coll.end( ); }\
+	forceinline const_iterator end( ) const { return coll.end( ); }\
+	forceinline const_iterator cbegin( ) const { return coll.begin( ); }\
+	forceinline const_iterator cend( ) const { return coll.end( ); }\
+\
+	forceinline reverse_iterator rbegin( ) { return coll.rbegin( ); }\
+	forceinline const_reverse_iterator rbegin( ) const { return coll.rbegin( ); }\
+	forceinline reverse_iterator rend( ) { return coll.rend( ); }\
+	forceinline const_reverse_iterator rend( ) const { return coll.rend( ); }\
+	forceinline const_reverse_iterator crbegin( ) const { return coll.rbegin( ); }\
+	forceinline const_reverse_iterator crend( ) const { return coll.rend( ); }\
+\
+	T& operator[]( const uint64_t& idx )\
+	{\
+		if ( Size( ) <= idx )\
+			throw IndexOutOfRangeException(\
+				ConcatNatStrings(\
+					"Index: " ,\
+					std::to_string( idx ) ,\
+					" is out of range for a " __ToString(name) " of size: " ,\
+					std::to_string( Size( ) ) ) );\
+		return coll[ idx ];\
+	}\
+	const T& operator[]( const uint64_t& idx ) const\
+	{\
+		if ( Size( ) <= idx )\
+			throw IndexOutOfRangeException(\
+				ConcatNatStrings(\
+					"Index: " ,\
+					std::to_string( idx ) ,\
+					" is out of range for a " __ToString(name) " of size: " ,\
+					std::to_string( Size( ) ) ) );\
+		return coll[ idx ];\
+	}\
+	const T& GetAt( const uint64_t& idx ) const { return ( *this )[ idx ]; }\
+	forceinline void SetAt( const uint64_t& idx , T value ) { coll[ idx ] = value; }\
+\
+	NatString ToString( ) const override\
+	{\
+		NatString s( startBrace );\
+		for ( size_t i = 0; i < Size( ); i++ )\
+		{\
+			if ( i != 0 )s += ", ";\
+			s += coll[ i ]->ToString( );\
+		}\
+		s += endBrace;\
+		return std::move( s );\
+	}\
+	int64_t GetHashCode( ) const override\
+	{\
+		NatVector<size_t> hashes( Size( ) );\
+		for ( size_t i = 0; i < Size( ); i++ ) hashes[ i ] = Hash( coll[ i ] );\
+		return CombineHashCodesInColl( hashes );\
+	}\
+\
+	forceinline uint64_t Size( ) const { return coll.size( ); }\
+	forceinline uint64_t Length( ) const { return coll.size( ); }\
+	template<typename T2> forceinline void AddFront( T2&& item ) { emplaceFront(coll, std::forward<T2>( item ) ); }\
+	template<typename T2> forceinline void Add( T2&& item ) { coll.emplace_back( std::forward<T2>( item ) ); }\
+	template<typename T2> forceinline void AddBefore( uint64_t index , T2&& item )\
+	{ coll.emplace( begin( ) + index , std::forward<T2>( item ) ); }\
+	template<typename T2 , typename... Args> forceinline void AddFront( T2&& item , Args&&... args )\
+	{\
+		AddFront( std::forward<Args>( args )... );\
+		emplaceFront(coll, std::forward<T2>( item ) );\
+	}\
+	template<typename T2 , typename... Args> forceinline void Add( T2&& item , Args&&... args )\
+	{\
+		coll.emplace_back( std::forward<T2>( item ) );\
+		Add( std::forward<Args>( args )... );\
+	}\
+	template<typename T2 , typename... Args> forceinline void AddBefore( uint64_t index , T2&& item , Args&&... args )\
+	{\
+		AddBefore( index , std::forward<Args>( args )... );\
+		coll.emplace( begin( ) + index , std::forward<T2>( item ) );\
+	}\
+	forceinline void Clear( ) { coll.clear( ); }\
+	template<typename TF>\
+	forceinline bool Exists( TF&& func ) const { return std::any_of( begin( ) , end( ) , std::forward<TF>( func ) ); }\
+	template<typename TF>\
+	T& Find( TF&& func )\
+	{\
+		auto iter = std::find_if( begin( ) , end( ) , std::forward<TF>( func ) );\
+		if ( iter == end( ) )throw ValueNotFoundException( "value not found" );\
+		return *iter;\
+	}\
+	template<typename TF>\
+	const T& Find( TF&& func ) const\
+	{\
+		auto iter = std::find_if( begin( ) , end( ) , std::forward<TF>( func ) );\
+		if ( iter == end( ) )throw ValueNotFoundException( "value not found" );\
+		return *iter;\
+	}\
+	template<typename TF>\
+	pself FindAll( TF&& func )\
+	{\
+		pself retVal = Make( );\
+		std::copy_if( begin( ) , end( ) , std::back_inserter( retVal->coll ) , std::forward<TF>( func ) );\
+		return retVal;\
+	}\
+	template<typename TF>\
+	pself FindAll( TF&& func ) const\
+	{\
+		pself retVal = Make( );\
+		std::copy_if( begin( ) , end( ) , std::back_inserter( retVal->coll ) , std::forward<TF>( func ) );\
+		return retVal;\
+	}\
+	template<typename TF> iterator FindIndex( uint64_t startIndex , uint64_t count , TF&& match )\
+	{ return std::find_if( begin( ) + startIndex , begin( ) + startIndex + count , std::forward<TF>( match ) ); }\
+	template<typename TF> iterator FindIndex( uint64_t startIndex , TF&& match )\
+	{ return std::find_if( begin( ) + startIndex , end( ) , std::forward<TF>( match ) ); }\
+	template<typename TF> iterator FindIndex( TF&& match )\
+	{ return std::find_if( begin( ) , end( ) , std::forward<TF>( match ) ); }\
+	template<typename TF> const_iterator FindIndex( uint64_t startIndex , uint64_t count , TF&& match ) const\
+	{ return std::find_if( begin( ) + startIndex , begin( ) + startIndex + count , std::forward<TF>( match ) ); }\
+	template<typename TF> const_iterator FindIndex( uint64_t startIndex , TF&& match ) const\
+	{ return std::find_if( begin( ) + startIndex , end( ) , std::forward<TF>( match ) ); }\
+	template<typename TF> const_iterator FindIndex( TF&& match ) const\
+	{ return std::find_if( begin( ) , end( ) , std::forward<TF>( match ) ); }\
+	template<typename TF> iterator FindLastIndex( TF&& match )\
+	{ return std::find_if( rbegin( ) , rend( ) , std::forward<TF>( match ) ); }\
+	template<typename TF>\
+	forceinline void ForEach( TF&& f ) { std::for_each( begin( ) , end( ) , std::forward<TF>( f ) ); }\
+	template<typename TF>\
+	forceinline void ForEach( TF&& f ) const { std::for_each( begin( ) , end( ) , std::forward<TF>( f ) ); }\
+	template<typename TF>\
+	forceinline void RevForEach( TF&& f ) { std::for_each( rbegin( ) , rend( ) , std::forward<TF>( f ) ); }\
+	template<typename TF>\
+	forceinline void RevForEach( TF&& f ) const { std::for_each( rbegin( ) , rend( ) , std::forward<TF>( f ) ); }\
+	forceinline pself GetRange( uint64_t index , uint64_t count ) { return Make( begin( ) + index , begin( ) + index + count ); }\
+	template<typename TF>\
+	bool Remove( TF&& match )\
+	{\
+		auto iter = std::find_if( begin( ) , end( ) , std::forward<TF>( match ) );\
+		if ( iter == end( ) )return false;\
+		coll.erase( iter );\
+		return true;\
+	}\
+	template<typename TF>\
+	uint64_t RemoveAll( TF match )\
+	{\
+		uint64_t no = 0;\
+		for ( size_t i = 0; i < coll.size( ); i++ )\
+			if ( match( ( *this )[ i ] ) )\
+			{\
+				++no;\
+				RemoveAt( begin( ) + i );\
+				--i;\
+			}\
+		return no;\
+	}\
+	forceinline void Reverse( uint64_t index , uint64_t count ) { std::reverse( begin( ) + index , begin( ) + index + count ); }\
+	forceinline void Reverse( ) { std::reverse( begin( ) , end( ) ); }\
+	forceinline void Resize( uint64_t size ) { coll.resize( size ); }\
+\
+	template<typename TF>\
+	forceinline void Sort( TF&& comparer ) { std::sort( begin( ) , end( ) , std::forward<TF>( comparer ) ); }\
+	forceinline void TrimExcess( ) { coll.shrink_to_fit( ); }\
+	template<typename TF>\
+	forceinline bool TrueForAll( TF&& match ) { return std::all_of( begin( ) , end( ) , std::forward<TF>( match ) ); }\
+\
+	forceinline void RemoveAt( uint64_t index )\
+	{\
+		if ( Size( ) <= index )\
+			throw IndexOutOfRangeException(\
+				ConcatNatStrings(\
+					"Index: " ,\
+					std::to_string( index ) ,\
+					" is out of range for a " __ToString(name) " of size: " ,\
+					std::to_string( Size( ) ) ) );\
+		coll.erase( begin( ) + index );\
+	}\
+protected:\
+	inline name( uint64_t len ) : coll( len ) { }\
+	template<typename TIter>\
+	forceinline name( const TIter& beg , const TIter& end ) : coll( beg , end ) { }\
+	forceinline name( std::initializer_list<T> init ) : coll( init ) { }\
+UCEndTemplateInterface( name , ( T ) );\
+\
+template<typename _T>\
+UCCtor( name<_T>::name ) :coll( ) { }\
+template<typename _T>\
+UCCtor( name<_T>::name , ( size ) ) : coll( UCAsInt64( size ) ) { }\
+template<typename _T>\
+UCMethod( name<_T>::OpGet , ( idx ) ) { return ( *this )[ UCAsUInt64( idx ) ]; }\
+template<typename _T>\
+UCMethod( name<_T>::OpGet , ( start , end ) ) { return this->GetRange( UCAsUInt64( start ) , UCAsUInt64( end ) ); }\
+template<typename _T>\
+UCMethod( name<_T>::OpSet , ( idx , value ) ) { ( *this )[ UCAsUInt64( idx ) ] = UCCast( _T , value ); return nullptr; }\
+template<typename _T>\
+UCMethod( name<_T>::OpLen ) { return UInt64::Make( Size( ) ); }\
+template<typename _T>\
+UCMethod( name<_T>::OpAddFront , ( val ) ) { AddFront( UCCast( _T , val ) ); return nullptr; }\
+template<typename _T>\
+UCMethod( name<_T>::OpAdd , ( val ) ) { Add( UCCast( _T , val ) ); return nullptr; }\
+template<typename _T>\
+UCMethod( name<_T>::OpAddBefore , ( idx , val ) ) { AddBefore( UCAsUInt64( idx ) , UCCast( _T , val ) ); return nullptr; }\
+template<typename _T>\
+UCMethod( name<_T>::OpClear ) { Clear( ); return nullptr; }\
+template<typename _T>\
+UCMethod( name<_T>::OpReverse , ( from , to ) ) { Reverse( UCAsUInt64( from ) , UCAsUInt64( to ) ); return nullptr; }\
+template<typename _T>\
+UCMethod( name<_T>::OpReverse ) { Reverse( ); return nullptr; }\
+template<typename _T>\
+UCMethod( name<_T>::OpResize , ( idx ) ) { Resize( UCAsUInt64( idx ) ); return nullptr; }\
+template<typename _T>\
+UCMethod( name<_T>::OpTrimExcess ) { TrimExcess( ); return nullptr; }\
+template<typename _T>\
+UCMethod( name<_T>::OpRemAt , ( idx ) ) { RemoveAt( UCAsUInt64( idx ) ); return nullptr; }\
+
+#define __CONTAINER_NatEmplaceFront(coll, itm) coll.emplace_front(itm);
+#define __CONTAINER_WrkAroundEmplaceFront(coll, itm) coll.emplace(coll.begin(), itm);
+
+	__DEFINE_Container( Deque , NatDeque , "<|" , "|>" , __CONTAINER_NatEmplaceFront );
+	__DEFINE_Container( Vector , NatVector , "[|" , "|]" , __CONTAINER_WrkAroundEmplaceFront );
+	__DEFINE_Container( BstDeque , boost::container::deque , "<<" , ">>" , __CONTAINER_NatEmplaceFront );
+	__DEFINE_Container( BstVector , boost::container::vector , "[[" , "]]" , __CONTAINER_WrkAroundEmplaceFront );
+
 	struct _HashGCP
 	{
 		template<typename T>
@@ -588,6 +879,38 @@ private:
 		forceinline size_t operator()( const T& val , std::false_type ) const
 		{ return std::hash<std::shared_ptr<typename T::element_type>>( )( val.ptr ); }
 	};
+
+	namespace IntLiterals
+	{
+	#define __DEFINE_IntLiterals(name, cname, undTupe) \
+		static P_##name operator""_##cname(unsigned long long int param){\
+			return name::Make(static_cast<undTupe>(param));\
+		}
+
+		__DEFINE_IntLiterals( Byte , b , UC::byte );
+		__DEFINE_IntLiterals( SByte , sb , UC::sbyte );
+		__DEFINE_IntLiterals( Int16 , i16 , int16_t );
+		__DEFINE_IntLiterals( Int32 , i32 , int32_t );
+		__DEFINE_IntLiterals( Int64 , i64 , int64_t );
+		__DEFINE_IntLiterals( UInt16 , ui16 , uint16_t );
+		__DEFINE_IntLiterals( UInt32 , ui32 , uint32_t );
+		__DEFINE_IntLiterals( UInt64 , ui64 , uint64_t );
+
+	#undef __DEFINE_IntLiterals
+	}
+
+	namespace Fltiterals
+	{
+	#define __DEFINE_FltLiterals(name, cname, undTupe) \
+		static P_##name operator""_##cname(long double param){\
+			return name::Make(static_cast<undTupe>(param));\
+		}
+
+		__DEFINE_FltLiterals( Float , flt , float );
+		__DEFINE_FltLiterals( Double , dbl , double );
+
+	#undef __DEFINE_FltLiterals
+	}
 }
 
 namespace std

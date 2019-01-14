@@ -2,6 +2,7 @@
 #include "Empty.hpp"
 
 using namespace std;
+using namespace UC::IntLiterals;
 
 UCRegister( Empty );
 
@@ -19,21 +20,21 @@ UCCtor( Empty::Empty , ( _1 ) )
 UCMethod( Empty::Do )
 {
 	cout << "0 parameters for " __FUNCTION__ << endl;
-	return nullptr;
+	return 0_i16;
 }
 
 UCMethod( Empty::Do , ( _1 ) )
 {
 	cout << "1 parameter for " __FUNCTION__ << endl;
-	return nullptr;
+	return 1_i16;
 }
 
 UCMethod( Empty::Do , ( _1 , _2 ) )
 {
 	cout << "2 parameter for " __FUNCTION__ << endl;
-	return nullptr;
+	return 2_i16;
 }
 
-void Empty::NativeFunction( ) { std::cout << "From native function:" __FUNCTION__ << std::endl; }
+int Empty::NativeFunction( ) { std::cout << "From native function:" __FUNCTION__ << std::endl; return 0; }
 
-void NEmpty::NativeBaseFunction( ) { std::cout << "From native function in base:" __FUNCTION__ << std::endl; }
+int NEmpty::NativeBaseFunction( ) { std::cout << "From native function in base:" __FUNCTION__ << std::endl; return 0; }
