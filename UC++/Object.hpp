@@ -4,11 +4,8 @@
 #include "stdafx.h"
 #include "Interface.hpp"
 #include "byte.hpp"
-#include <sstream>
 #include <exception>
 #include <stdexcept>
-#include <boost\container\vector.hpp>
-#include <boost\container\deque.hpp>
 #include <boost\type_traits\remove_reference.hpp>
 #include <boost\type_traits\is_detected.hpp>
 #include <boost\type_traits\add_const.hpp>
@@ -20,7 +17,9 @@ namespace UC
 	template<class T> boost::add_reference_t<boost::add_const<T>> cdeclref( ) noexcept;
 	template<typename T> using HasGHC = decltype( cdeclref<T>( ).GetHashCode( ) );
 	template<typename T> using HasPGHC = decltype( ( *cdeclref<T>( ) ).GetHashCode( ) );
+	template<typename T> using HasSGTN = decltype( T::SGetTypeName( ) );
 
+#pragma region Hashing
 	template<typename... Args>
 	size_t CombineHashCodes( Args&&... hashCodes )
 	{
@@ -83,24 +82,21 @@ namespace UC
 	{
 		typedef T argument_type;
 		typedef size_t result_type;
-		___UC_NODISCARD___ size_t operator()( const T v ) const noexcept { return _Hasher( )( v ); }
+		___UC_NODISCARD___ forceinline size_t operator()( const T& v ) const noexcept { return _Hasher( )( v ); }
 	};
 
 	template<typename T> forceinline size_t Hash( const T& val ) { return _Hasher( )( val ); }
+#pragma endregion
+
 
 	class Object;
 
+
+#pragma region Native String & Concatenation
 	/// <summary>
 	/// Represents text as a mutable sequence of ASCII code units.
 	/// </summary>
 	using NatString = std::string;
-
-	template<typename Arg1>
-	forceinline void ConcatNatStringsHelper( std::ostringstream& s , Arg1&& arg1 )
-	{ s << std::forward<Arg1>( arg1 ); }
-	template<typename Arg1 , typename... Args>
-	forceinline void ConcatNatStringsHelper( std::ostringstream& s , Arg1&& arg1 , Args&&... args )
-	{ s << std::forward<Arg1>( arg1 ); ConcatNatStringsHelper( s , std::forward<Args>( args )... ); }
 
 	static NatString ConcatNatStringsI( std::initializer_list<NatString> args )
 	{
@@ -114,6 +110,8 @@ namespace UC
 
 	template<typename... Args> forceinline NatString ConcatNatStrings( Args&&... args )
 	{ return ConcatNatStringsI( { NatString( args )... } ); }
+#pragma endregion
+
 
 #pragma region Exceptions
 	class Exception : public std::exception
@@ -179,10 +177,20 @@ namespace UC
 	/// </summary>
 	UCException( IndexOutOfRangeException );
 
+	/// <summary>
+	/// This exception is thrown when the value that has been asked for is not found.
+	/// </summary>
 	UCException( ValueNotFoundException );
 #pragma endregion
 
+
 #pragma region Smart Pointers
+	template<typename T> forceinline const NatString& SGetTypeName( std::true_type ) { return T::SGetTypeName( ); }
+	template<typename T> const NatString& SGetTypeName( std::false_type )
+	{ static NatString s( typeid( T ).name( ) ); return s; }
+	template<typename T> forceinline const NatString& SGetTypeName( )
+	{ return SGetTypeName<T>( std::bool_constant<boost::is_detected_v<HasSGTN , T>>( ) ); }
+
 	/// <summary>
 	/// GCPtr is a class for reference counted resource management/ARC (Automatic Reference Counting).
 	/// It holds a strong reference to the object inside it.
@@ -194,6 +202,8 @@ namespace UC
 
 		GCPtr<T>& Get( ) { if ( !HasValue( ) )throw NullPointerException( "Trying to dereference a null pointer." ); return *this; }
 		const GCPtr<T>& Get( ) const { if ( !HasValue( ) )throw NullPointerException( "Trying to dereference a null pointer." ); return *this; }
+
+		static const NatString& SGetTypeName( );
 
 		template<class T2>
 		forceinline GCPtr( const GCPtr<T2>& p ) :ptr( p.ptr ) { }
@@ -228,13 +238,25 @@ namespace UC
 		template<typename T2>
 		forceinline bool RefEq( const GCPtr<T2>& ptr2 )const noexcept { return ptr == ptr2.ptr; }
 		template<typename T2>
-		forceinline bool RefNotEq( const GCPtr<T2>& ptr2 )const noexcept { return ptr == ptr2.ptr; }
+		forceinline bool RefNotEq( const GCPtr<T2>& ptr2 )const noexcept { return ptr != ptr2.ptr; }
 
 		template<typename T>
 		friend class WeakPtr;
 		template<typename T>
 		friend class IEnableGCPtrFromMe;
 	};
+
+	template<typename T>
+	inline const NatString & UC::GCPtr<T>::SGetTypeName( )
+	{
+		static auto s = ConcatNatStrings( "GCPtr<" , UC::SGetTypeName<T>( ) , ">" );
+		return s;
+	};
+
+	template<typename T1 , typename T2>
+	forceinline bool operator ==( const GCPtr<T1>& ptr1 , const GCPtr<T2>& ptr2 ) { return *ptr1 == *ptr2; }
+	template<typename T1 , typename T2>
+	forceinline bool operator !=( const GCPtr<T1>& ptr1 , const GCPtr<T2>& ptr2 ) { return *ptr1 != *ptr2; }
 
 	template<typename T> forceinline bool operator!=( nullptr_t , const GCPtr<T>& val )
 	{ return val != nullptr; }
@@ -310,14 +332,17 @@ namespace UC
 
 	// NatVector = Native Vector
 	template<typename T>
-	using NatVector = std::vector<T>;
+	using NatVector = boost::container::vector<T>;
 
 	// NatDeque = Native Deque (Deque = Double Ended Queue)
 	template<typename T>
-	using NatDeque = std::deque<T>;
+	using NatDeque = boost::container::deque<T>;
 
 	// NatOVector = Native Object Vector
-	using NatOVector = std::vector<P_Any>;
+	using NatOVector = NatVector<P_Any>;
+
+	template<typename TKey , typename TVal>
+	using NatMap = boost::unordered_map<TKey , TVal , Hasher<TKey>>;
 
 	/// <summary>
 	/// This is the base class of all <seealso cref="UCInterface"/>s.
@@ -355,6 +380,7 @@ namespace UC
 	/// </summary>
 	template<typename T>using GCP = GCPtr<T>;
 
+#pragma region Casting & Checking
 	/// <summary>
 	/// Casts `value` to a value of type GCP{T}.
 	/// </summary>
@@ -391,6 +417,8 @@ namespace UC
 		if ( v == nullptr )throw PreNullPointerException( msg );
 		return std::move( v );
 	}
+#pragma endregion
+
 
 #pragma region Integral Placeholder Interfaces
 #define __DEFINE_integralPlaceHolderInterfaces(name, underlyingType)\
@@ -401,6 +429,8 @@ public:\
 	using int_t = underlyingType;\
 	const int_t value;\
 	forceinline name():value{ }{}\
+	bool operator==( const self& o ) const{return value == o.value;}\
+	bool operator!=( const self& o ) const{return value != o.value;}\
 	virtual NatString ToString( ) const{return std::to_string(value);}\
 	virtual int64_t GetHashCode( ) const{return Hash(value);}\
 	forceinline name(int_t value):value{value }{}\
@@ -426,6 +456,8 @@ UCInterface( name , UC_WhereTypenameIs( "UC::" __ToString(name) ) , UC_InheritsU
 	UC_HasNoMethods;\
 public:\
 	const underlyingType value;\
+	bool operator==( const self& o ) const{return value == o.value;}\
+	bool operator!=( const self& o ) const{return value != o.value;}\
 	virtual NatString ToString( ) const{return std::to_string(value);}\
 	virtual int64_t GetHashCode( ) const{return Hash(value);}\
 	forceinline name(underlyingType value=default_):value{value }{}\
@@ -446,6 +478,8 @@ UCInterface( name , UC_WhereTypenameIs( "UC::" __ToString(name) ) , UC_InheritsU
 	UC_HasNoMethods;\
 public:\
 	const underlyingType value;\
+	bool operator==( const self& o ) const{return value == o.value;}\
+	bool operator!=( const self& o ) const{return value != o.value;}\
 	forceinline name():value{}{}\
 	virtual NatString ToString( ) const{return std::to_string(value);}\
 	virtual int64_t GetHashCode( ) const{return Hash(value);}\
@@ -559,7 +593,7 @@ public:
 	forceinline const_reverse_iterator crbegin( ) const { return std::crbegin( value ); }
 	forceinline const_reverse_iterator crend( ) const { return std::crend( value ); }
 
-	NatString ToString( ) const override { return value; }
+	NatString ToString( ) const override { return ConcatNatStrings( "\"" , value , "\"" ); }
 	int64_t GetHashCode( ) const override { return Hash( value ); }
 
 	forceinline const char& Get( size_t idx ) const { return value[ ( size_t ) idx ]; }
@@ -575,16 +609,13 @@ public:
 	forceinline pself NSubstring( size_t startIndex ) const { return Make( value.substr( startIndex ) ); }
 
 	forceinline pself operator+( const self& s )const { return Make( value + s.value ); }
-	forceinline bool operator==( const pself& s ) const { return value == s->value; }
-	forceinline bool operator!=( const pself& s ) const { return value != s->value; }
+	forceinline bool operator==( const self& s ) const { return value == s.value; }
+	forceinline bool operator!=( const self& s ) const { return value != s.value; }
 	forceinline bool operator==( const char* s ) const { return value == s; }
 	forceinline bool operator!=( const char* s ) const { return value != s; }
 
-	template<typename... Args>
-	static pself Concat( Args&&... args )
-	{
-		return Make( ConcatNatStrings( GetNativeFrom( GetFrom( std::forward<Args>( args ) ) )... ) );
-	}
+	template<typename... Args> static pself Concat( Args&&... args )
+	{ return Make( ConcatNatStrings( GetNativeFrom( GetFrom( std::forward<Args>( args ) ) )... ) ); }
 
 	static pself GetFrom( self& s ) { return s.ME; }
 	static pcself GetFrom( const self& s ) { return s.ME; }
@@ -609,18 +640,15 @@ private:
 	UCEndInterface( String );
 #pragma endregion
 
+
+#pragma region Containers
+#pragma region Non-Associative Containers
 #define __DEFINE_Container(name, underly_t,startBrace,endBrace, emplaceFront)\
-template<typename _T>\
-struct name UCTemplateInterface( name , ( _T ) , UC_WhereTypenameIs( "UC::" __ToString(name) ) , UC_InheritsUCClasses( Object ) , UC_InheritsNoNativeClasses );\
+UCTemplateInterface( name , ( T ) , UC_WhereTypenameIs( "UC::" __ToString(name) ) , UC_InheritsUCClasses( Object ) , UC_InheritsNoNativeClasses );\
 	UC_HasExplicitCtors( name , UC_AlsoHasEmptyCtor , ( size ) );\
 	UC_HasMethods(\
-		( OpGet , ( idx ) ) ,\
 		( OpGet , ( start , end ) ) ,\
-		( OpSet , ( idx , value ) ) ,\
 		( OpLen ) ,\
-		( OpAddFront , ( val ) ) ,\
-		( OpAdd , ( val ) ) ,\
-		( OpAddBefore , ( idx , val ) ) ,\
 		( OpClear ) ,\
 		( OpReverse , ( from , to ) ) ,\
 		( OpReverse ) ,\
@@ -630,8 +658,6 @@ struct name UCTemplateInterface( name , ( _T ) , UC_WhereTypenameIs( "UC::" __To
 	);\
 \
 public:\
-	using T = GCP<_T>;\
-\
 	using col_t = underly_t<T>;\
 	col_t coll;\
 	typedef typename col_t::value_type value_type;\
@@ -680,8 +706,8 @@ public:\
 					std::to_string( Size( ) ) ) );\
 		return coll[ idx ];\
 	}\
-	const T& GetAt( const uint64_t& idx ) const { return ( *this )[ idx ]; }\
-	forceinline void SetAt( const uint64_t& idx , T value ) { coll[ idx ] = value; }\
+	const T& Get( const uint64_t& idx ) const { return ( *this )[ idx ]; }\
+	forceinline void Set( const uint64_t& idx , T value ) { coll[ idx ] = value; }\
 \
 	NatString ToString( ) const override\
 	{\
@@ -689,7 +715,7 @@ public:\
 		for ( size_t i = 0; i < Size( ); i++ )\
 		{\
 			if ( i != 0 )s += ", ";\
-			s += coll[ i ]->ToString( );\
+			s += coll[ i ]->ToString();\
 		}\
 		s += endBrace;\
 		return std::move( s );\
@@ -823,6 +849,8 @@ protected:\
 	template<typename TIter>\
 	forceinline name( const TIter& beg , const TIter& end ) : coll( beg , end ) { }\
 	forceinline name( std::initializer_list<T> init ) : coll( init ) { }\
+	template<typename... Args>\
+	pself MakeI(Args&&... args){return pself(new self{std::forward<Args>(args)...});}\
 UCEndTemplateInterface( name , ( T ) );\
 \
 template<typename _T>\
@@ -830,19 +858,9 @@ UCCtor( name<_T>::name ) :coll( ) { }\
 template<typename _T>\
 UCCtor( name<_T>::name , ( size ) ) : coll( UCAsInt64( size ) ) { }\
 template<typename _T>\
-UCMethod( name<_T>::OpGet , ( idx ) ) { return ( *this )[ UCAsUInt64( idx ) ]; }\
-template<typename _T>\
 UCMethod( name<_T>::OpGet , ( start , end ) ) { return this->GetRange( UCAsUInt64( start ) , UCAsUInt64( end ) ); }\
 template<typename _T>\
-UCMethod( name<_T>::OpSet , ( idx , value ) ) { ( *this )[ UCAsUInt64( idx ) ] = UCCast( _T , value ); return nullptr; }\
-template<typename _T>\
 UCMethod( name<_T>::OpLen ) { return UInt64::Make( Size( ) ); }\
-template<typename _T>\
-UCMethod( name<_T>::OpAddFront , ( val ) ) { AddFront( UCCast( _T , val ) ); return nullptr; }\
-template<typename _T>\
-UCMethod( name<_T>::OpAdd , ( val ) ) { Add( UCCast( _T , val ) ); return nullptr; }\
-template<typename _T>\
-UCMethod( name<_T>::OpAddBefore , ( idx , val ) ) { AddBefore( UCAsUInt64( idx ) , UCCast( _T , val ) ); return nullptr; }\
 template<typename _T>\
 UCMethod( name<_T>::OpClear ) { Clear( ); return nullptr; }\
 template<typename _T>\
@@ -859,10 +877,125 @@ UCMethod( name<_T>::OpRemAt , ( idx ) ) { RemoveAt( UCAsUInt64( idx ) ); return 
 #define __CONTAINER_NatEmplaceFront(coll, itm) coll.emplace_front(itm);
 #define __CONTAINER_WrkAroundEmplaceFront(coll, itm) coll.emplace(coll.begin(), itm);
 
-	__DEFINE_Container( Deque , NatDeque , "<|" , "|>" , __CONTAINER_NatEmplaceFront );
-	__DEFINE_Container( Vector , NatVector , "[|" , "|]" , __CONTAINER_WrkAroundEmplaceFront );
-	__DEFINE_Container( BstDeque , boost::container::deque , "<<" , ">>" , __CONTAINER_NatEmplaceFront );
-	__DEFINE_Container( BstVector , boost::container::vector , "[[" , "]]" , __CONTAINER_WrkAroundEmplaceFront );
+	__DEFINE_Container( Deque , std::deque , "<| " , " |>" , __CONTAINER_NatEmplaceFront );
+	__DEFINE_Container( Vector , std::vector , "[[ " , " ]]" , __CONTAINER_WrkAroundEmplaceFront );
+	__DEFINE_Container( BstDeque , boost::container::deque , "<< " , " >>" , __CONTAINER_NatEmplaceFront );
+	__DEFINE_Container( BstVector , boost::container::vector , "[| " , " |]" , __CONTAINER_WrkAroundEmplaceFront );
+#pragma endregion
+
+
+#pragma region Associative Containers
+#define __DEFINE_UnorderedContainer(name, underly_t, startBrace, endBrace)\
+UCTemplateInterface( name , ( TKey , TVal ) , UC_WhereTypenameIs( "UC::" __ToString(name) ) , UC_InheritsUCClasses( Object ) , UC_InheritsNoNativeClasses );\
+	UC_HasNativeCtorsAndEmptyCtor;\
+	UC_HasMethods( ( OpClear ) , ( OpSize ) , ( OpLen ) );\
+public:\
+	using coll_t = underly_t<TKey , TVal, Hasher<TKey>>;\
+	coll_t coll;\
+\
+	using hasher = typename coll_t::hasher;\
+	using key_type = typename coll_t::key_type;\
+	using mapped_type = typename coll_t::mapped_type;\
+	using key_equal = typename coll_t::key_equal;\
+\
+	using value_type = typename coll_t::value_type;\
+	using allocator_type = typename coll_t::allocator_type;\
+	using size_type = typename coll_t::size_type;\
+	using difference_type = typename coll_t::difference_type;\
+	using pointer = typename coll_t::pointer;\
+	using const_pointer = typename coll_t::const_pointer;\
+	using reference = value_type & ;\
+	using const_reference = const value_type&;\
+	using iterator = typename coll_t::iterator;\
+	using const_iterator = typename coll_t::const_iterator;\
+\
+	forceinline iterator begin( ) { return		coll.begin( ); }\
+	forceinline const_iterator begin( ) const { return coll.begin( ); }\
+	forceinline iterator end( ) { return		 coll.end( ); }\
+	forceinline const_iterator end( ) const { return coll.end( ); }\
+	forceinline const_iterator cbegin( ) const { return coll.begin( ); }\
+	forceinline const_iterator cend( ) const { return coll.end( ); }\
+\
+	name( ) :coll {} { }\
+	name( std::initializer_list<std::pair<const TKey , TVal>> ilist ) :coll(ilist) { }\
+\
+	const TVal& Get( const TKey& key ) const\
+	{\
+		auto itr = coll.find( key );\
+		if ( itr == coll.end( ) )\
+			throw IndexOutOfRangeException( ConcatNatStrings( "Key: \"" , key->ToString( ) , "\" is invalid for " , SGetTypeName( ) ) );\
+		return itr->second;\
+	}\
+	TVal& Get( const TKey& key )\
+	{\
+		auto itr = coll.find( key );\
+		if ( itr == coll.end( ) )\
+			throw IndexOutOfRangeException( ConcatNatStrings( "Key: \"" , key->ToString( ) , "\" is invalid for " , SGetTypeName( ) ) );\
+		return itr->second;\
+	}\
+	forceinline void Set( const TKey& key , TVal& val ) { coll[ key ] = val; }\
+\
+	template<typename _TKey , typename _TVal>\
+	forceinline std::pair<iterator , bool> Add( _TKey&& key , _TVal&& val )\
+	{ return coll.emplace( std::forward<_TKey>( key ) , std::forward<_TVal>( val ) ); }\
+\
+	NatString ToString( ) const override\
+	{\
+		NatString s( startBrace );\
+		bool first = true;\
+		for ( auto& i : coll )\
+		{\
+			if ( first ) { first = false; s += ConcatNatStrings( "[ " , i.first->ToString( ) , " ] = " , i.second->ToString( ) ); }\
+			else s += ConcatNatStrings( ", [ " , i.first->ToString( ) , " ] = " , i.second->ToString( ) );\
+		}\
+		s += endBrace;\
+		return std::move( s );\
+	}\
+	int64_t GetHashCode( ) const override\
+	{\
+		NatVector<size_t> hashes( Size( ) * 2 );\
+		size_t idx = 0;\
+		for ( auto& i : coll )\
+		{\
+			hashes[ idx ] = i.first->GetHashCode( );\
+			++idx;\
+			hashes[ idx ] = i.second->GetHashCode( );\
+			++idx;\
+		}\
+		return CombineHashCodesInColl( hashes );\
+	}\
+\
+	forceinline void Clear( ) { coll.clear( ); }\
+	forceinline iterator Find( const TKey& key ) { return coll.find( key ); }\
+	forceinline uint64_t Size( ) const { return coll.size( ); }\
+	forceinline uint64_t Length( ) const { return coll.length( ); }\
+\
+	bool Remove( const TKey& key )\
+	{\
+		auto iter = coll.find( key );\
+		if ( iter == coll.end( ) )return false;\
+		coll.erase( iter );\
+		return true;\
+	}\
+\
+	template<typename... Args>\
+	static pself MakeI(std::initializer_list<std::pair<const TKey , TVal>> ilist){return pself(new self(ilist));}\
+\
+UCEndTemplateInterface( name , ( TKey , TVal ) );\
+\
+template<typename TKey , typename TVal>\
+UC_MTPMethod( ( name<TKey , TVal> ) , OpClear ) { Clear( ); return nullptr; }\
+template<typename TKey , typename TVal>\
+UC_MTPMethod( ( name<TKey , TVal> ) , OpSize ) { return Int64::Make( Size( ) ); }\
+template<typename TKey , typename TVal>\
+UC_MTPMethod( ( name<TKey , TVal> ) , OpLen ) { return Int64::Make( Size( ) ); }\
+
+
+	__DEFINE_UnorderedContainer( UnorderedMap , std::unordered_map , "{|" , "|}" );
+	__DEFINE_UnorderedContainer( BstUnorderedMap , boost::unordered_map , "{{" , "}}" );
+#pragma endregion
+#pragma endregion
+
 
 	struct _HashGCP
 	{
@@ -899,24 +1032,26 @@ UCMethod( name<_T>::OpRemAt , ( idx ) ) { RemoveAt( UCAsUInt64( idx ) ); return 
 	#undef __DEFINE_IntLiterals
 	}
 
-	namespace Fltiterals
+	namespace FltLiterals
 	{
 	#define __DEFINE_FltLiterals(name, cname, undTupe) \
-		static P_##name operator""_##cname(long double param){\
-			return name::Make(static_cast<undTupe>(param));\
-		}
+		static P_##name operator""_##cname(long double param){return name::Make(static_cast<undTupe>(param));}
 
 		__DEFINE_FltLiterals( Float , flt , float );
 		__DEFINE_FltLiterals( Double , dbl , double );
 
 	#undef __DEFINE_FltLiterals
 	}
+
+	namespace StrLiterals
+	{
+		forceinline static P_String operator""_us( const char* param , std::size_t ) { return String::Make( param ); }
+	}
 }
 
 namespace std
 {
-	template<typename T>
-	struct hash<UC::GCPtr<T>>
+	template<typename T> struct hash<UC::GCPtr<T>>
 	{
 		typedef UC::GCPtr<T> argument_type;
 		typedef size_t result_type;

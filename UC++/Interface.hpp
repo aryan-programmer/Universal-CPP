@@ -196,8 +196,11 @@ Name(const ::UC::NatString& str)noexcept:base(str){}\
 #define WME EGCPFM::WeakFromMe()
 
 #define __UCMethod(tuple) auto BOOST_PP_TUPLE_ELEM(0, tuple) (__UCGetGetMethodParamsIfExists(tuple)) -> ::UC::P_Any
+#define __UCMTPMethod(tuple) BOOST_PP_TUPLE_ELEM(0, tuple) (__UCGetGetMethodParamsIfExists(tuple)) -> ::UC::P_Any
 
 #define UCMethod(...) __UCMethod((__VA_ARGS__))
+#define __UCEXP(...) __VA_ARGS__
+#define UC_MTPMethod(ClsT,...) auto __UCEXP ClsT::__UCMTPMethod((__VA_ARGS__))
 
 #define __UCCTor(tuple) BOOST_PP_TUPLE_ELEM(0, tuple) (__UCGetGetMethodParamsIfExists(tuple))
 
@@ -225,7 +228,7 @@ Name(const ::UC::NatString& str)noexcept:base(str){}\
 #define __UCExpandAsTemplate(tup) template<BOOST_PP_SEQ_FOR_EACH_I(__UCExpandUCTemplateHelper, _, BOOST_PP_TUPLE_TO_SEQ(tup))>
 #define __UCExpandAsCondensedParametersHelper(r, data, i, elem) BOOST_PP_COMMA_IF(i) elem
 #define __UCExpandAsCondensedParameters(...) BOOST_PP_SEQ_FOR_EACH_I(__UCExpandAsCondensedParametersHelper, _, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
-#define __UCExpandTypesToTypenamesHelper(r, data, i, elem) BOOST_PP_COMMA_IF(i) elem::SGetTypeName()
+#define __UCExpandTypesToTypenamesHelper(r, data, i, elem) BOOST_PP_COMMA_IF(i) ::UC::SGetTypeName<elem>()
 #define __UCExpandTypesToTypenames(tup) BOOST_PP_SEQ_FOR_EACH_I(__UCExpandTypesToTypenamesHelper, _, BOOST_PP_TUPLE_TO_SEQ(tup))
 #define __UCExpandTypesToComparatorsToObjectHelper(r, data, i, elem) BOOST_PP_EXPR_IF(i,&&) ::std::is_same<elem, ::UC::Object>::value
 #define __UCExpandTypesToComparatorsToObject(tup) BOOST_PP_SEQ_FOR_EACH_I(__UCExpandTypesToComparatorsToObjectHelper, _, BOOST_PP_TUPLE_TO_SEQ(tup))
@@ -255,15 +258,12 @@ public:\
 /// Look at the example files to see how to use it.
 /// </summary>
 #define UCTemplateInterface(Name, TypeParams, StrName, Inheritance, NativeInheritance)\
- : Inheritance __UCExpand##NativeInheritance, ::UC::EnableGCPtrFromMe<Name<__UCExpandAsCondensedParameters TypeParams>>{\
+__UCExpandAsTemplate(TypeParams) struct Name : Inheritance __UCExpand##NativeInheritance, ::UC::EnableGCPtrFromMe<Name<__UCExpandAsCondensedParameters TypeParams>>{\
 	__UCExpandInheritanceAsUsings##Inheritance\
 	__UCExpandNativeInheritanceAsUsings##NativeInheritance\
 	using self = Name<__UCExpandAsCondensedParameters TypeParams>;\
 	using pself = ::UC::GCP<self>;\
 	using wself = ::UC::WeakPtr<self>;\
-	using oself = Name<__UCExpandAsOnlyObject(TypeParams)>;\
-	using poself = ::UC::GCP<oself>;\
-	using woself = ::UC::WeakPtr<oself>;\
 	using EGCPFM = ::UC::EnableGCPtrFromMe<self>;\
 	__UCDefineTemplateTypename(\
 		BOOST_PP_IF(BOOST_PP_SEQ_ELEM(0, StrName), \
@@ -274,13 +274,10 @@ public:\
 #define UCEndTemplateInterface(Name, TypeParams) };\
 __UCExpandAsTemplate(TypeParams) using P_##Name = ::UC::GCP<Name<__UCExpandAsCondensedParameters TypeParams>>;\
 __UCExpandAsTemplate(TypeParams) using W_##Name = ::UC::WeakPtr<Name<__UCExpandAsCondensedParameters TypeParams>>;\
-using O_##Name = Name<__UCExpandAsOnlyObject(TypeParams)>;\
-using OP_##Name = ::UC::GCP<Name<__UCExpandAsOnlyObject(TypeParams)>>;\
-using OW_##Name = ::UC::GCP<Name<__UCExpandAsOnlyObject(TypeParams)>>\
 
 #define UCC(var, fname, ...) var->Call(fname, __VA_ARGS__)
 
-#define UCRegisterTemplate(oname) struct __##oname##_class_registerer_class{\
-	__##oname##_class_registerer_class(){::UC::Object::addConstructor(oname::SGetSimpleTypeName(), &oname::make_reflective);}\
-}; static __##oname##_class_registerer_class __inst__##oname##_class_registerer_class_instance{};
+#define UCRegisterTemplate(name, ...) struct __##name##_class_registerer_class{\
+	__##name##_class_registerer_class(){::UC::Object::addConstructor(name __VA_ARGS__::SGetSimpleTypeName(), &(name __VA_ARGS__::make_reflective));}\
+}; static __##name##_class_registerer_class __inst__##name##_class_registerer_class_instance{};
 #endif // !__UC__INTERFACE_MACROS__HPP__

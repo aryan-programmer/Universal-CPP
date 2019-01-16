@@ -71,8 +71,11 @@ namespace UC
 	UCMethod( String::OpAdd , ( _1 , _2 , _3 , _4 , _5 , _6 , _7 , _8 , _9 ) ) { return Concat( ME , UCCast( String , _1 ) , UCCast( String , _2 ) , UCCast( String , _3 ) , UCCast( String , _4 ) , UCCast( String , _5 ) , UCCast( String , _6 ) , UCCast( String , _7 ) , UCCast( String , _8 ) , UCCast( String , _9 ) ); }
 	UCMethod( String::OpAdd , ( _1 , _2 , _3 , _4 , _5 , _6 , _7 , _8 , _9 , _10 ) ) { return Concat( ME , UCCast( String , _1 ) , UCCast( String , _2 ) , UCCast( String , _3 ) , UCCast( String , _4 ) , UCCast( String , _5 ) , UCCast( String , _6 ) , UCCast( String , _7 ) , UCCast( String , _8 ) , UCCast( String , _9 ) , UCCast( String , _10 ) ); }
 
-	UCRegisterTemplate( O_Deque );
-	UCRegisterTemplate( O_Vector );
-	UCRegisterTemplate( O_BstDeque );
-	UCRegisterTemplate( O_BstVector );
+	UCRegisterTemplate( Deque , <P_Any> );
+	UCRegisterTemplate( Vector , <P_Any> );
+	UCRegisterTemplate( BstDeque , <P_Any> );
+	UCRegisterTemplate( BstVector , <P_Any> );
+
+	UCRegisterTemplate( UnorderedMap , <P_Any , P_Any> );
+	UCRegisterTemplate( BstUnorderedMap , <P_Any , P_Any> );
 }
