@@ -996,6 +996,123 @@ UC_MTPMethod( ( name<TKey , TVal> ) , OpLen ) { return Int64::Make( Size( ) ); }
 #pragma endregion
 #pragma endregion
 
+	template<typename T , typename TFunctionToUse>
+	struct FunctionImplTypeDeducer;
+
+	template<typename TAssign , typename TFunc>
+	auto MakeFunc( TFunc&& func ) ->typename FunctionImplTypeDeducer<TAssign , std::decay_t<TFunc>>::base
+	{
+		using Deducer = FunctionImplTypeDeducer<TAssign , std::decay_t<TFunc>>;
+		using TRet = typename Deducer::impl;
+		using TRRet = typename Deducer::base;
+		return TRRet( TRet::Make( std::forward<TFunc>( func ) ) );
+	}
+
+	UCTemplateInterfaceWithPack( Function , ( TReturn ) , TParams , UC_WhereTypenameIs( "UC::Function" ) , UC_InheritsUCClasses( Object ) , UC_InheritsNoNativeClasses );
+	UC_IsAbstract;
+	UC_HasNoMethods;
+
+	virtual TReturn Eval( TParams... params ) = 0;
+
+	TReturn operator()( TParams... params )
+	{
+		if constexpr ( std::is_void_v<TReturn> ) Eval( params... );
+		else return Eval( params... );
+	};
+	UCEndTemplateInterfaceWithPack( Function , ( TReturn ) , TParams );
+
+	UCTemplateInterfaceWithPack( FunctionImpl , ( TFunc , TReturn ) , TParams , UC_WhereTypenameIs( "UC::FunctionImpl" ) , UC_InheritsUCClassesInBraces( ( Function<TReturn , TParams...> ) ) , UC_InheritsNoNativeClasses , final );
+	UC_OnlyHasNativeCtors;
+	UC_HasNoMethods;
+
+	virtual TReturn Eval( TParams... params ) override
+	{
+		if constexpr ( std::is_void_v<TReturn> ) std::invoke( func , params... );
+		else return std::invoke( func , params... );
+	};
+protected:
+	TFunc func;
+
+	FunctionImpl( TFunc fun ) :func( fun ) { }
+	UCEndTemplateInterfaceWithPack( FunctionImpl , ( TFunc , TReturn ) , TParams );
+
+	UCTemplateInterfaceWithOnlyPack( Event , TParams , UC_WhereTypenameIs( "UC::Event" ) , UC_InheritsUCClassesInBraces( ( Function<void , TParams...> ) ) , UC_InheritsNoNativeClasses , final );
+	UC_OnlyHasNativeCtors;
+	UC_HasNoMethods;
+
+	using func_t = P_Function<void , TParams...>;
+
+	using col_t = std::list<func_t>;
+	typedef typename col_t::value_type value_type;
+	typedef typename col_t::reference reference;
+	typedef typename col_t::const_reference const_reference;
+	typedef typename col_t::iterator iterator;
+	typedef typename col_t::const_iterator const_iterator;
+	typedef typename col_t::reverse_iterator reverse_iterator;
+	typedef typename col_t::const_reverse_iterator const_reverse_iterator;
+	typedef typename col_t::size_type size_type;
+	typedef typename col_t::difference_type difference_type;
+
+	using func_id = iterator;
+
+	forceinline iterator begin( ) { return		lst.begin( ); }
+	forceinline const_iterator begin( ) const { return lst.begin( ); }
+	forceinline iterator end( ) { return		 lst.end( ); }
+	forceinline const_iterator end( ) const { return lst.end( ); }
+	forceinline const_iterator cbegin( ) const { return lst.begin( ); }
+	forceinline const_iterator cend( ) const { return lst.end( ); }
+
+	forceinline reverse_iterator rbegin( ) { return lst.rbegin( ); }
+	forceinline const_reverse_iterator rbegin( ) const { return lst.rbegin( ); }
+	forceinline reverse_iterator rend( ) { return lst.rend( ); }
+	forceinline const_reverse_iterator rend( ) const { return lst.rend( ); }
+	forceinline const_reverse_iterator crbegin( ) const { return lst.rbegin( ); }
+	forceinline const_reverse_iterator crend( ) const { return lst.rend( ); }
+
+	virtual void Eval( TParams... params ) override { for ( auto& func : lst ) func->Eval( params... ); };
+
+	template<typename TFunc> func_id Add( TFunc&& func )
+	{
+		using TRet = typename FunctionImplTypeDeducer<func_t , std::decay_t<TFunc>>::impl;
+		lst.emplace_back( TRet::Make( std::forward<TFunc>( func ) ) );
+		return --lst.end( );
+	}
+	template<typename TFunc>
+	forceinline func_id operator+=( TFunc&& func ) { return Add( std::forward<TFunc>( func ) ); }
+
+	forceinline func_id Size( ) { return lst.size( ); }
+
+	forceinline void Clear( ) { lst.clear( ); }
+
+	forceinline func_t Get( func_id id ) { return *id; }
+
+	forceinline void Remove( func_id id ) { lst.erase( id ); }
+
+protected:
+	Event( ) :lst( ) { }
+	std::list<func_t> lst;
+	UCEndTemplateInterfaceWithOnlyPack( Event , TParams );
+
+	template<typename TFunctionToUse , typename TReturn , typename... TParams>
+	struct FunctionImplTypeDeducer<P_Function<TReturn , TParams...> , TFunctionToUse>
+	{
+		using impl = FunctionImpl<TFunctionToUse , TReturn , TParams...>;
+		using base = P_Function<TReturn , TParams...>;
+	};
+
+	template<typename TFunctionToUse , typename TReturn , typename... TParams>
+	struct FunctionImplTypeDeducer<Function<TReturn , TParams...> , TFunctionToUse>
+	{
+		using impl = FunctionImpl<TFunctionToUse , TReturn , TParams...>;
+		using base = P_Function<TReturn , TParams...>;
+	};
+
+	template<typename TFunctionToUse , typename TReturn , typename... TParams>
+	struct FunctionImplTypeDeducer<TReturn( TParams... ) , TFunctionToUse>
+	{
+		using impl = FunctionImpl<TFunctionToUse , TReturn , TParams...>;
+		using base = P_Function<TReturn , TParams...>;
+	};
 
 	struct _HashGCP
 	{

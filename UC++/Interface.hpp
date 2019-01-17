@@ -52,8 +52,9 @@ virtual ::UC::P_Any Call( const ::UC::NatString& fname, const ::UC::NatOVector& 
 // )
 
 // ,
-#define UC_InheritsUCClasses(...) __VA_ARGS__
-#define UC_InheritsNativeClasses(...) __VA_ARGS__
+#define UC_InheritsUCClasses(...) UC_InheritsUCClasses(__VA_ARGS__)
+#define UC_InheritsUCClassesInBraces(...) UC_InheritsUCClassesInBraces(__VA_ARGS__)
+#define UC_InheritsNativeClasses(...) UC_InheritsNativeClasses(__VA_ARGS__)
 #define UC_InheritsNoNativeClasses
 //#undef UC_InheritsUCClasses
 // , (...Inheritance...), 
@@ -81,14 +82,23 @@ static ::UC::P_Any make_reflective( const ::UC::NatOVector& args ){\
 	}\
 }
 
-#   define UC_IsAbstract
-#   define UC_IsAbstractAndHasCtors(name, hasEmptyCtor,...) protected: __UCHasExplicitMakers_Decls(name, hasEmptyCtor, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) public:
+#   define UC_IsAbstract static ::UC::P_Any make_reflective(const ::UC::NatOVector& args){\
+	throw ::UC::NoSuchConstructor_Exception(SGetTypeName() + " is an abstract class that can't be instantiated.");\
+}
+#   define UC_IsAbstractAndHasCtors(name, hasEmptyCtor,...) protected: __UCHasExplicitMakers_Decls(name, hasEmptyCtor, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) public: static ::UC::P_Any make_reflective(const ::UC::NatOVector& args){\
+	throw ::UC::NoSuchConstructor_Exception(SGetTypeName() + " is an abstract class that can't be instantiated.");\
+}
+#   define UC_OnlyHasNativeCtors static ::UC::P_Any make_reflective(const ::UC::NatOVector& args){\
+	throw ::UC::NoSuchConstructor_Exception(SGetTypeName() + " can't be instantiated by reflection.");\
+}\
+template<typename... Args>\
+static ::UC::GCP<self> Make(Args&&... args){return ::UC::GCP<self>(new self(std::forward<Args>(args)...));}\
 	// or
 #   define UC_OnlyHasEmptyCtor \
 static ::UC::GCP<self> Make(){return ::UC::GCP<self>(new self());}\
 static ::UC::P_Any make_reflective(const ::UC::NatOVector& args){\
 	if(args.size() == 0)return ::UC::P_Any(new self());\
-	return nullptr;\
+	throw ::UC::NoSuchConstructor_Exception(::UC::ConcatNatStrings(::UC::NatString("No constructor for type \""),SGetTypeName(),"\" that takes in ", std::to_string(args.size()), " parameters."));\
 }
 	// or
 #   define UC_HasNativeCtorsAndEmptyCtor \
@@ -118,6 +128,8 @@ virtual ::UC::P_Any Call( const ::UC::NatString& fname, const ::UC::NatOVector& 
 
 #define __UCExpandInheritanceHelper(r, data, i, elem) using BOOST_PP_CAT(base, i) = elem;
 #define __UCExpandInheritanceAsUsingsUC_InheritsUCClasses(...) BOOST_PP_SEQ_FOR_EACH_I(__UCExpandInheritanceHelper, _, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
+#define __UCExpandInheritanceInBracesHelper(r, data, i, elem) using BOOST_PP_CAT(base, i) = __UCEXP elem;
+#define __UCExpandInheritanceAsUsingsUC_InheritsUCClassesInBraces(...) BOOST_PP_SEQ_FOR_EACH_I(__UCExpandInheritanceInBracesHelper, _, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
 #define __UCExpandInheritanceUC_InheritsUCClasses(...) __VA_ARGS__
 #define __UCDefine_callUpChainWithInheritsHelperH(baseN, resN) \
 try{\
@@ -149,6 +161,9 @@ public:\
 		return SGetTypeName( );\
 	}
 
+#define __UCExpandUC_InheritsUCClassesInBracesHelper(r, data, i, elem) BOOST_PP_COMMA_IF(i) __UCEXP elem
+#define __UCExpandUC_InheritsUCClassesInBraces(...) BOOST_PP_SEQ_FOR_EACH_I(__UCExpandUC_InheritsUCClassesInBracesHelper, _, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
+#define __UCExpandUC_InheritsUCClasses(...) __VA_ARGS__
 #define __UCExpandNativeInheritanceHelper(r, data, i, elem) using BOOST_PP_CAT(nbase, i) = elem;
 #define __UCExpandUC_InheritsNativeClasses(...) , __VA_ARGS__
 #define __UCExpandUC_InheritsNoNativeClasses
@@ -163,7 +178,7 @@ public:\
 // The fifth parameter is "*optional*" and can include post modifiers like final, which prevent the UC++ Interface from being inherited.
 // Be careful there is a vast difference in the name and the type-name. The name represents the struct identifier of the UCInterface. The type-name is a string that is the return value of T::SGetTypeName() & t.GetTypeName(), also it is the **_registered_** name of the UCInterface, used for reflection.
 #define UCInterface(Name, StrName, Inheritance, NativeInheritance, ...)\
-struct Name __VA_ARGS__ : Inheritance __UCExpand##NativeInheritance, ::UC::EnableGCPtrFromMe<Name>{\
+struct Name __VA_ARGS__ : __UCExpand##Inheritance __UCExpand##NativeInheritance, ::UC::EnableGCPtrFromMe<Name>{\
 	__UCExpandInheritanceAsUsings##Inheritance\
 	__UCExpandNativeInheritanceAsUsings##NativeInheritance\
 	using self = Name;\
@@ -235,7 +250,7 @@ Name(const ::UC::NatString& str)noexcept:base(str){}\
 
 #define __UCDefineTemplateTypename(str, Inheritance, TypeParams) \
 protected:\
-	auto callImplUpChain(const ::UC::NatString& fname, const ::UC::NatOVector& args) -> ::UC::P_Any{__UCDefine_callUpChainWith##Inheritance; throw ::UC::NoSuchFunction_Exception(::UC::ConcatNatStrings(::UC::NatString("No function for type \""), str, "<", __UCExpandTypesToTypenames(TypeParams), ">\" with name \"", fname, "\" that takes in ", std::to_string(args.size()), " parameters."));}\
+	auto callImplUpChain(const ::UC::NatString& fname, const ::UC::NatOVector& args) -> ::UC::P_Any{__UCDefine_callUpChainWith##Inheritance; throw ::UC::NoSuchFunction_Exception(::UC::ConcatNatStrings(::UC::NatString("No function for type \""), SGetTypeName(), "\" with name \"", fname, "\" that takes in ", std::to_string(args.size()), " parameters."));}\
 public:\
 	static const ::UC::NatString& SGetSimpleTypeName( ){\
 		static auto nm = ::UC::NatString( str );\
@@ -258,7 +273,7 @@ public:\
 /// Look at the example files to see how to use it.
 /// </summary>
 #define UCTemplateInterface(Name, TypeParams, StrName, Inheritance, NativeInheritance)\
-__UCExpandAsTemplate(TypeParams) struct Name : Inheritance __UCExpand##NativeInheritance, ::UC::EnableGCPtrFromMe<Name<__UCExpandAsCondensedParameters TypeParams>>{\
+__UCExpandAsTemplate(TypeParams) struct Name : __UCExpand##Inheritance __UCExpand##NativeInheritance, ::UC::EnableGCPtrFromMe<Name<__UCExpandAsCondensedParameters TypeParams>>{\
 	__UCExpandInheritanceAsUsings##Inheritance\
 	__UCExpandNativeInheritanceAsUsings##NativeInheritance\
 	using self = Name<__UCExpandAsCondensedParameters TypeParams>;\
@@ -274,6 +289,88 @@ __UCExpandAsTemplate(TypeParams) struct Name : Inheritance __UCExpand##NativeInh
 #define UCEndTemplateInterface(Name, TypeParams) };\
 __UCExpandAsTemplate(TypeParams) using P_##Name = ::UC::GCP<Name<__UCExpandAsCondensedParameters TypeParams>>;\
 __UCExpandAsTemplate(TypeParams) using W_##Name = ::UC::WeakPtr<Name<__UCExpandAsCondensedParameters TypeParams>>;\
+
+
+#define __UCDefineTemplateTypenameWithPack(str, Inheritance, TypeParams, PackParam) \
+protected:\
+	auto callImplUpChain(const ::UC::NatString& fname, const ::UC::NatOVector& args) -> ::UC::P_Any{__UCDefine_callUpChainWith##Inheritance; throw ::UC::NoSuchFunction_Exception(::UC::ConcatNatStrings(::UC::NatString("No function for type \""), SGetTypeName(), "\" with name \"", fname, "\" that takes in ", std::to_string(args.size()), " parameters."));}\
+public:\
+	static const ::UC::NatString& SGetSimpleTypeName( ){\
+		static auto nm = ::UC::NatString( str );\
+		return nm;\
+	}\
+	static const ::UC::NatString& SGetTypeName( ){\
+		static auto nm = ::UC::ConcatNatStrings(::UC::NatString( str ), __UCExpandTypesToTypenames(TypeParams), ::UC::SGetTypeName<PackParam>()...);\
+		return nm;\
+	}\
+	/*Inherited via ::UC::Object*/\
+	virtual const ::UC::NatString& GetTypeName( ) const override{\
+		return SGetTypeName( );\
+	}
+
+#define __UCExpandAsTemplateParamPack(tup, PackParamName) template<BOOST_PP_SEQ_FOR_EACH_I(__UCExpandUCTemplateHelper, _, BOOST_PP_TUPLE_TO_SEQ(tup)), typename... PackParamName>
+
+/// <summary>
+/// This macro defines a template interface that has a template parameter pack. The template interface defined inherits UC::Object, it simplifies much of the boiler plate code.
+/// Look at the example files to see how to use it.
+/// </summary>
+#define UCTemplateInterfaceWithPack(Name, TypeParams, PackParamName, StrName, Inheritance, NativeInheritance, ...)\
+__UCExpandAsTemplateParamPack(TypeParams, PackParamName) struct Name __VA_ARGS__ :  __UCExpand##Inheritance __UCExpand##NativeInheritance, ::UC::EnableGCPtrFromMe<Name<__UCExpandAsCondensedParameters TypeParams, PackParamName...>>{\
+	__UCExpandInheritanceAsUsings##Inheritance\
+	__UCExpandNativeInheritanceAsUsings##NativeInheritance\
+	using self = Name<__UCExpandAsCondensedParameters TypeParams, PackParamName...>;\
+	using pself = ::UC::GCP<self>;\
+	using wself = ::UC::WeakPtr<self>;\
+	using EGCPFM = ::UC::EnableGCPtrFromMe<self>;\
+	__UCDefineTemplateTypenameWithPack(\
+		BOOST_PP_IF(BOOST_PP_SEQ_ELEM(0, StrName), \
+			__ToString(Name), \
+		/*else*/\
+			BOOST_PP_SEQ_ELEM(1, StrName) ), UC_InheritsUCClasses( Inheritance ), TypeParams, PackParamName )
+
+#define UCEndTemplateInterfaceWithPack(Name, TypeParams, PackParamName) };\
+__UCExpandAsTemplateParamPack(TypeParams, PackParamName) using P_##Name = ::UC::GCP<Name<__UCExpandAsCondensedParameters TypeParams, PackParamName...>>;\
+__UCExpandAsTemplateParamPack(TypeParams, PackParamName) using W_##Name = ::UC::WeakPtr<Name<__UCExpandAsCondensedParameters TypeParams, PackParamName...>>;\
+
+#define __UCDefineTemplateTypenameWithOnlyPack(str, Inheritance, PackParam) \
+protected:\
+	auto callImplUpChain(const ::UC::NatString& fname, const ::UC::NatOVector& args) -> ::UC::P_Any{__UCDefine_callUpChainWith##Inheritance; throw ::UC::NoSuchFunction_Exception(::UC::ConcatNatStrings(::UC::NatString("No function for type \""), SGetTypeName(), "\" with name \"", fname, "\" that takes in ", std::to_string(args.size()), " parameters."));}\
+public:\
+	static const ::UC::NatString& SGetSimpleTypeName( ){\
+		static auto nm = ::UC::NatString( str );\
+		return nm;\
+	}\
+	static const ::UC::NatString& SGetTypeName( ){\
+		static auto nm = ::UC::ConcatNatStrings(::UC::NatString( str ), ::UC::SGetTypeName<PackParam>()...);\
+		return nm;\
+	}\
+	/*Inherited via ::UC::Object*/\
+	virtual const ::UC::NatString& GetTypeName( ) const override{\
+		return SGetTypeName( );\
+	}
+
+/// <summary>
+/// This macro defines a template interface that has a template parameter pack. The template interface defined inherits UC::Object, it simplifies much of the boiler plate code.
+/// Look at the example files to see how to use it.
+/// </summary>
+#define UCTemplateInterfaceWithOnlyPack(Name, PackParam, StrName, Inheritance, NativeInheritance, ...)\
+template<typename... PackParam> struct Name __VA_ARGS__ :  __UCExpand##Inheritance __UCExpand##NativeInheritance, ::UC::EnableGCPtrFromMe<Name<PackParam...>>{\
+	__UCExpandInheritanceAsUsings##Inheritance\
+	__UCExpandNativeInheritanceAsUsings##NativeInheritance\
+	using self = Name<PackParam...>;\
+	using pself = ::UC::GCP<self>;\
+	using wself = ::UC::WeakPtr<self>;\
+	using EGCPFM = ::UC::EnableGCPtrFromMe<self>;\
+	__UCDefineTemplateTypenameWithOnlyPack(\
+		BOOST_PP_IF(BOOST_PP_SEQ_ELEM(0, StrName), \
+			__ToString(Name), \
+		/*else*/\
+			BOOST_PP_SEQ_ELEM(1, StrName) ), UC_InheritsUCClasses( Inheritance ), PackParam )
+
+#define UCEndTemplateInterfaceWithOnlyPack(Name, PackParamName) };\
+template<typename... PackParamName> using P_##Name = ::UC::GCP<Name<PackParamName...>>;\
+template<typename... PackParamName> using W_##Name = ::UC::WeakPtr<Name<PackParamName...>>;\
+
 
 #define UCC(var, fname, ...) var->Call(fname, __VA_ARGS__)
 
