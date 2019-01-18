@@ -996,19 +996,20 @@ UC_MTPMethod( ( name<TKey , TVal> ) , OpLen ) { return Int64::Make( Size( ) ); }
 #pragma endregion
 #pragma endregion
 
-	template<typename T , typename TFunctionToUse>
-	struct FunctionImplTypeDeducer;
+	template<typename T , typename TFunctionToUse = void> struct _FunctionTypeDeducerImpl;
 
 	template<typename TAssign , typename TFunc>
-	auto MakeFunc( TFunc&& func ) ->typename FunctionImplTypeDeducer<TAssign , std::decay_t<TFunc>>::base
+	typename _FunctionTypeDeducerImpl<TAssign , std::decay_t<TFunc>>::pbase MakeFunc( TFunc&& func )
 	{
-		using Deducer = FunctionImplTypeDeducer<TAssign , std::decay_t<TFunc>>;
+		using Deducer = _FunctionTypeDeducerImpl<TAssign , std::decay_t<TFunc>>;
 		using TRet = typename Deducer::impl;
-		using TRRet = typename Deducer::base;
+		using TRRet = typename Deducer::pbase;
 		return TRRet( TRet::Make( std::forward<TFunc>( func ) ) );
 	}
 
-	UCTemplateInterfaceWithPack( Function , ( TReturn ) , TParams , UC_WhereTypenameIs( "UC::Function" ) , UC_InheritsUCClasses( Object ) , UC_InheritsNoNativeClasses );
+
+#pragma region Functor
+	UCTemplateInterfaceWithPack( Functor , ( TReturn ) , TParams , UC_WhereTypenameIs( "UC::Functor" ) , UC_InheritsUCClasses( Object ) , UC_InheritsNoNativeClasses );
 	UC_IsAbstract;
 	UC_HasNoMethods;
 
@@ -1019,9 +1020,12 @@ UC_MTPMethod( ( name<TKey , TVal> ) , OpLen ) { return Int64::Make( Size( ) ); }
 		if constexpr ( std::is_void_v<TReturn> ) Eval( params... );
 		else return Eval( params... );
 	};
-	UCEndTemplateInterfaceWithPack( Function , ( TReturn ) , TParams );
+	UCEndTemplateInterfaceWithPack( Functor , ( TReturn ) , TParams );
+#pragma endregion
 
-	UCTemplateInterfaceWithPack( FunctionImpl , ( TFunc , TReturn ) , TParams , UC_WhereTypenameIs( "UC::FunctionImpl" ) , UC_InheritsUCClassesInBraces( ( Function<TReturn , TParams...> ) ) , UC_InheritsNoNativeClasses , final );
+
+#pragma region FunctorImpl
+	UCTemplateInterfaceWithPack( FunctorImpl , ( TFunc , TReturn ) , TParams , UC_WhereTypenameIs( base0::SGetTypeName( ) ) , UC_InheritsUCClassesInBraces( ( Functor<TReturn , TParams...> ) ) , UC_InheritsNoNativeClasses , final );
 	UC_OnlyHasNativeCtors;
 	UC_HasNoMethods;
 
@@ -1033,14 +1037,17 @@ UC_MTPMethod( ( name<TKey , TVal> ) , OpLen ) { return Int64::Make( Size( ) ); }
 protected:
 	TFunc func;
 
-	FunctionImpl( TFunc fun ) :func( fun ) { }
-	UCEndTemplateInterfaceWithPack( FunctionImpl , ( TFunc , TReturn ) , TParams );
+	FunctorImpl( TFunc fun ) :func( fun ) { }
+	UCEndTemplateInterfaceWithPack( FunctorImpl , ( TFunc , TReturn ) , TParams );
+#pragma endregion
 
-	UCTemplateInterfaceWithOnlyPack( Event , TParams , UC_WhereTypenameIs( "UC::Event" ) , UC_InheritsUCClassesInBraces( ( Function<void , TParams...> ) ) , UC_InheritsNoNativeClasses , final );
+
+#pragma region Event
+	UCTemplateInterfaceWithOnlyPack( Event , TParams , UC_WhereTypenameIs( "UC::Event" ) , UC_InheritsUCClassesInBraces( ( Functor<void , TParams...> ) ) , UC_InheritsNoNativeClasses , final );
 	UC_OnlyHasNativeCtors;
 	UC_HasNoMethods;
 
-	using func_t = P_Function<void , TParams...>;
+	using func_t = P_Functor<void , TParams...>;
 
 	using col_t = std::list<func_t>;
 	typedef typename col_t::value_type value_type;
@@ -1073,18 +1080,20 @@ protected:
 
 	template<typename TFunc> func_id Add( TFunc&& func )
 	{
-		using TRet = typename FunctionImplTypeDeducer<func_t , std::decay_t<TFunc>>::impl;
+		using TRet = typename _FunctionTypeDeducerImpl<func_t , std::decay_t<TFunc>>::impl;
 		lst.emplace_back( TRet::Make( std::forward<TFunc>( func ) ) );
 		return --lst.end( );
 	}
-	template<typename TFunc>
-	forceinline func_id operator+=( TFunc&& func ) { return Add( std::forward<TFunc>( func ) ); }
+
+	func_id AddF( func_t func )
+	{
+		lst.emplace_back( std::move( func ) );
+		return --lst.end( );
+	}
 
 	forceinline func_id Size( ) { return lst.size( ); }
 
 	forceinline void Clear( ) { lst.clear( ); }
-
-	forceinline func_t Get( func_id id ) { return *id; }
 
 	forceinline void Remove( func_id id ) { lst.erase( id ); }
 
@@ -1092,27 +1101,189 @@ protected:
 	Event( ) :lst( ) { }
 	std::list<func_t> lst;
 	UCEndTemplateInterfaceWithOnlyPack( Event , TParams );
+#pragma endregion
 
+
+#pragma region _FunctionTypeDeducerImpl
 	template<typename TFunctionToUse , typename TReturn , typename... TParams>
-	struct FunctionImplTypeDeducer<P_Function<TReturn , TParams...> , TFunctionToUse>
+	struct _FunctionTypeDeducerImpl<P_Functor<TReturn , TParams...> , TFunctionToUse>
 	{
-		using impl = FunctionImpl<TFunctionToUse , TReturn , TParams...>;
-		using base = P_Function<TReturn , TParams...>;
+		using impl = FunctorImpl<TFunctionToUse , TReturn , TParams...>;
+		using base = Functor<TReturn , TParams...>;
+		using pbase = P_Functor<TReturn , TParams...>;
 	};
 
 	template<typename TFunctionToUse , typename TReturn , typename... TParams>
-	struct FunctionImplTypeDeducer<Function<TReturn , TParams...> , TFunctionToUse>
+	struct _FunctionTypeDeducerImpl<Functor<TReturn , TParams...> , TFunctionToUse>
 	{
-		using impl = FunctionImpl<TFunctionToUse , TReturn , TParams...>;
-		using base = P_Function<TReturn , TParams...>;
+		using impl = FunctorImpl<TFunctionToUse , TReturn , TParams...>;
+		using base = Functor<TReturn , TParams...>;
+		using pbase = P_Functor<TReturn , TParams...>;
 	};
 
 	template<typename TFunctionToUse , typename TReturn , typename... TParams>
-	struct FunctionImplTypeDeducer<TReturn( TParams... ) , TFunctionToUse>
+	struct _FunctionTypeDeducerImpl<TReturn( TParams... ) , TFunctionToUse>
 	{
-		using impl = FunctionImpl<TFunctionToUse , TReturn , TParams...>;
-		using base = P_Function<TReturn , TParams...>;
+		using impl = FunctorImpl<TFunctionToUse , TReturn , TParams...>;
+		using base = Functor<TReturn , TParams...>;
+		using pbase = P_Functor<TReturn , TParams...>;
 	};
+
+	template<typename TFunctionToUse , typename TReturn , typename... TParams>
+	struct _FunctionTypeDeducerImpl<TReturn( *)( TParams... ) , TFunctionToUse>
+	{
+		using impl = FunctorImpl<TFunctionToUse , TReturn , TParams...>;
+		using base = Functor<TReturn , TParams...>;
+		using pbase = P_Functor<TReturn , TParams...>;
+	};
+
+	template<typename TFunctionToUse , typename... TParams>
+	struct _FunctionTypeDeducerImpl<P_Functor<void , TParams...> , TFunctionToUse>
+	{
+		using impl = FunctorImpl<TFunctionToUse , void , TParams...>;
+		using base = Functor<void , TParams...>;
+		using evnt = Event<TParams...>;
+		using pevnt = P_Event<TParams...>;
+		using pbase = P_Functor<void , TParams...>;
+	};
+
+	template<typename TFunctionToUse , typename... TParams>
+	struct _FunctionTypeDeducerImpl<Functor<void , TParams...> , TFunctionToUse>
+	{
+		using impl = FunctorImpl<TFunctionToUse , void , TParams...>;
+		using base = Functor<void , TParams...>;
+		using evnt = Event<TParams...>;
+		using pevnt = P_Event<TParams...>;
+		using pbase = P_Functor<void , TParams...>;
+	};
+
+	template<typename TFunctionToUse , typename... TParams>
+	struct _FunctionTypeDeducerImpl<P_Event<TParams...> , TFunctionToUse>
+	{
+		using impl = FunctorImpl<TFunctionToUse , void , TParams...>;
+		using base = Functor<void , TParams...>;
+		using evnt = Event<TParams...>;
+		using pevnt = P_Event<TParams...>;
+		using pbase = P_Functor<void , TParams...>;
+	};
+
+	template<typename TFunctionToUse , typename... TParams>
+	struct _FunctionTypeDeducerImpl<Event<TParams...> , TFunctionToUse>
+	{
+		using impl = FunctorImpl<TFunctionToUse , void , TParams...>;
+		using base = Functor<void , TParams...>;
+		using evnt = Event<TParams...>;
+		using pevnt = P_Event<TParams...>;
+		using pbase = P_Functor<void , TParams...>;
+	};
+
+	template<typename TFunctionToUse , typename... TParams>
+	struct _FunctionTypeDeducerImpl<void( TParams... ) , TFunctionToUse>
+	{
+		using impl = FunctorImpl<TFunctionToUse , void , TParams...>;
+		using base = Functor<void , TParams...>;
+		using evnt = Event<TParams...>;
+		using pevnt = P_Event<TParams...>;
+		using pbase = P_Functor<void , TParams...>;
+	};
+
+	template<typename TFunctionToUse , typename... TParams>
+	struct _FunctionTypeDeducerImpl<void( *)( TParams... ) , TFunctionToUse>
+	{
+		using impl = FunctorImpl<TFunctionToUse , void , TParams...>;
+		using base = Functor<void , TParams...>;
+		using evnt = Event<TParams...>;
+		using pevnt = P_Event<TParams...>;
+		using pbase = P_Functor<void , TParams...>;
+	};
+
+	template<typename TReturn , typename... TParams>
+	struct _FunctionTypeDeducerImpl<P_Functor<TReturn , TParams...>>
+	{
+		using base = Functor<TReturn , TParams...>;
+		using pbase = P_Functor<TReturn , TParams...>;
+	};
+
+	template<typename TReturn , typename... TParams>
+	struct _FunctionTypeDeducerImpl<Functor<TReturn , TParams...>>
+	{
+		using base = Functor<TReturn , TParams...>;
+		using pbase = P_Functor<TReturn , TParams...>;
+	};
+
+	template<typename TReturn , typename... TParams>
+	struct _FunctionTypeDeducerImpl<TReturn( TParams... )>
+	{
+		using base = Functor<TReturn , TParams...>;
+		using pbase = P_Functor<TReturn , TParams...>;
+	};
+
+	template<typename TReturn , typename... TParams>
+	struct _FunctionTypeDeducerImpl<TReturn( *)( TParams... )>
+	{
+		using base = Functor<TReturn , TParams...>;
+		using pbase = P_Functor<TReturn , TParams...>;
+	};
+
+	template<typename... TParams>
+	struct _FunctionTypeDeducerImpl<P_Functor<void , TParams...>>
+	{
+		using base = Functor<void , TParams...>;
+		using evnt = Event<TParams...>;
+		using pevnt = P_Event<TParams...>;
+		using pbase = P_Functor<void , TParams...>;
+	};
+
+	template<typename... TParams>
+	struct _FunctionTypeDeducerImpl<Functor<void , TParams...> >
+	{
+		using base = Functor<void , TParams...>;
+		using evnt = Event<TParams...>;
+		using pevnt = P_Event<TParams...>;
+		using pbase = P_Functor<void , TParams...>;
+	};
+
+	template<typename... TParams>
+	struct _FunctionTypeDeducerImpl<P_Event<TParams...>>
+	{
+		using base = Functor<void , TParams...>;
+		using evnt = Event<TParams...>;
+		using pevnt = P_Event<TParams...>;
+		using pbase = P_Functor<void , TParams...>;
+	};
+
+	template<typename... TParams>
+	struct _FunctionTypeDeducerImpl<Event<TParams...>>
+	{
+		using base = Functor<void , TParams...>;
+		using evnt = Event<TParams...>;
+		using pevnt = P_Event<TParams...>;
+		using pbase = P_Functor<void , TParams...>;
+	};
+
+	template<typename... TParams>
+	struct _FunctionTypeDeducerImpl<void( TParams... )>
+	{
+		using base = Functor<void , TParams...>;
+		using evnt = Event<TParams...>;
+		using pevnt = P_Event<TParams...>;
+		using pbase = P_Functor<void , TParams...>;
+	};
+
+	template<typename... TParams>
+	struct _FunctionTypeDeducerImpl<void( *)( TParams... )>
+	{
+		using base = Functor<void , TParams...>;
+		using evnt = Event<TParams...>;
+		using pevnt = P_Event<TParams...>;
+		using pbase = P_Functor<void , TParams...>;
+	};
+#pragma endregion
+
+	template<typename TFunc> using EventFrom = typename _FunctionTypeDeducerImpl<TFunc>::evnt;
+	template<typename TFunc> using P_EventFrom = typename _FunctionTypeDeducerImpl<TFunc>::pevnt;
+	template<typename TFunc> using FuncFrom = typename _FunctionTypeDeducerImpl<TFunc>::base;
+	template<typename TFunc> using P_FuncFrom = typename _FunctionTypeDeducerImpl<TFunc>::pbase;
 
 	struct _HashGCP
 	{

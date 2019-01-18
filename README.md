@@ -67,8 +67,84 @@ UC::ObjCast<?TypeToCastTo?>(?variable?)
 
 ------
 
+### <span style="color:green">√ Delegates ← C#</span>
+
+Delegates are from C#, but they aren't called delegates, they're called **<u>_Functors_</u>**.
+
+Functor = **<u>_Func_</u>**tion + Opera**<u>_tor_</u>**
+
+There are 3 core things to 'delegates' or functors
+
+1. `UC::Function<TReturn, TParameters...>`
+
+   This template interface is abstract, it isn't directly instantiated, `UC::MakeFunc` is used for instantiating instances of this interface.
+
+   To call the stored function call `?functor?->Eval(?parameters?...)` with the designated <span style="color:green">?parameters?...</span>
+
+2. Function type aliases and how to use them
+
+   They are defined as aliases for **<u>_function types_</u>**, not **<u>_functor types_</u>**. Define one as
+
+   ```C++
+   using ?name? = ?return-type?(*)(?parameter-types?...)
+   ```
+
+   Where <span style="color:green">?name?</span> & <span style="color:green">?return-type?</span> refer to the name of the alias & return type respectively, and <span style="color:green">?parameter-types...?</span> refers to 0 or more parameters.
+
+   To get a `UC::Function` from the alias use:
+
+   ```C++
+   UC::FuncFrom<?name?>
+   ```
+
+   To get a `UC::P_Function` from the alias use:
+
+   ```C++
+   UC::P_FuncFrom<?name?>
+   ```
+
+   To get a `UC::Event` from the alias use:
+
+   ```C++
+   UC::EventFrom<?name?>
+   ```
+
+   To get a `UC::P_Event` from the alias use:
+
+   ```C++
+   UC::P_EventFrom<?name?>
+   ```
+
+3. `UC::MakeFunc<TFunction, TRealFunction>(TRealFunction&& func)`
+
+   Use this function as
+
+   ```C++
+   UC::MakeFunc<?function-type?>(?function/function-object/lambda/closure to-make-from?)
+   ```
+
+   Where <span style="color:green">?function-type?</span> refers to the type of the function it can be `UC::Function<TReturn, TParameters...>` or a Function type alias. <span style="color:green">?function/function-object/lambda/closure to-make-from?</span> refers to exactly what the name says.
+
+------
+
+### <span style="color:green">√ Events ← Qt</span>
+
+Events are technically from C#. However they are also implemented in Qt (& Boost), but there they are called as signals and the functions which register to them are called slots. In C#, signals and slots are referred to as events and delegates. In UC++, signals and slots are referred to as events and functors (would you rather prefer "Group of UC++ GC pointer to function object" and "UC++ GC pointer to function object").
+
+To create an event use `?event-type::Make()?` and assign it to a variable to class field.
+
+To add a function, function-object, lambda or closure use `?event?->Add(?function/function-object/lambda/closure to-add?)`. To add a `UC::Function` use `?event?->AddF(?functor?)`. The return value of these functions is the id of the functor added, hold onto it if you want to erase it later.
+
+To remove a functor using it's id use `?event?->Remove(?id?)`.
+
+To invoke the event use `?event?->Eval(?parameters?...)` with the designated <span style="color:green">?parameters?...</span>
+
+An event is a functor, i.e. you can chain events, i.e. subscribe an event to an event.
+
+------
 
 ### <span style="color:blue">√ Multiple Class Inheritance ← C++</span>
+
 From C++!!
 
 ------
