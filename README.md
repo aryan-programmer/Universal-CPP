@@ -151,6 +151,14 @@ An event is a functor, i.e. you can chain events, i.e. subscribe an event to an 
 
 ------
 
+### <span style="color:gray">√ Singleton ← Kotlin</span>
+
+The singleton pattern comes inbuilt with Kotlin, UC++ also provides an inbuilt singleton pattern. 
+
+For more information look to the documentation on the macro <span style="color:purple">UC_IsSingleton</span>.
+
+------
+
 ### <span style="color:blue">√ Multiple Class Inheritance ← C++</span>
 
 From C++!!

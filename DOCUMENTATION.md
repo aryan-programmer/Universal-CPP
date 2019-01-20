@@ -15,7 +15,25 @@
 - A **<u>_context-sensitive_</u>** place holder is a string of characters wrapped in question marks(??), e.g. ?name?. They can appear anywhere and context-sensitive. They may be color coded as <span style="color:green">green</span>, if possible.
 - Macros are color coded in <span style="color:purple">purple</span>, if possible.
 
+## <span style="color:purple">forceinline</span>
 
+This macro is defined as being equal to <span style="color:purple">BOOST_FORCEINLINE</span>, which is defined as
+
+```C++
+// BOOST_FORCEINLINE ---------------------------------------------//
+// Macro to use in place of 'inline' to force a function to be inline
+#if !defined(BOOST_FORCEINLINE)
+#  if defined(_MSC_VER)
+#    define BOOST_FORCEINLINE __forceinline
+#  elif defined(__GNUC__) && __GNUC__ > 3
+#    define BOOST_FORCEINLINE inline __attribute__ ((__always_inline__))
+#  else
+#    define BOOST_FORCEINLINE inline
+#  endif
+#endif
+```
+
+ It is a `Macro to use in place of 'inline' to force a function to be inline`.
 
 ## <span style="color:purple">UCInterface</span>(Name, StrName, Inheritance, NativeInheritance, ...)
 
@@ -37,6 +55,23 @@
 ### Remember, always make constructors `protected` or `private` **<u>_never_</u>** `public`.
 
 To use certain things like <span style="color:purple">ME</span> or <span style="color:purple">WME</span> the object has to be constructed as a `UC::GCPtr` but if the object is called with the `public` constructor then there will be undefined behaviour. So, to avoid that always make constructors `protected` or `private` **<u>_never_</u>** `public`.
+
+### <span style="color:purple">UC_IsSingleton</span>
+
+This macro defines Make() as being a function that is implemented as
+
+```C++
+static pself Make(){
+	static pself v(new self());
+	return v;
+}
+```
+
+Where `self` refers to the class in which <span style="color:purple">UC_IsSingleton</span> is being expanded, and `pself` is equal to `UC::GCPtr<self>`. The macro also defines `GetInstance()`, `GetInst()`, `GetI()`, `Instance()` and `Inst()` which all call Make(). 
+
+NOTE: The functions `GetInstance()`, `GetInst()`, `GetI()`, `Instance()` and `Inst()` are all declared as <span style="color:purple">forceinline</span> so calling either `GetInstance()`, `GetInst()`, `GetI()`, `Instance()` or `Inst()` is equivalent to calling `Make()`.
+
+#### OR
 
 ### <span style="color:purple">UC_IsAbstract</span>
 
