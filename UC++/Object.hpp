@@ -181,6 +181,11 @@ namespace UC
 	/// This exception is thrown when the value that has been asked for is not found.
 	/// </summary>
 	UCException( ValueNotFoundException );
+
+	/// <summary>
+	/// This exception is thrown when an event that has to return a value has no functions added to it.
+	/// </summary>
+	UCException( NoFunctorsAddedToEvent_Exception );
 #pragma endregion
 
 
@@ -1043,11 +1048,11 @@ protected:
 
 
 #pragma region Event
-	UCTemplateInterfaceWithOnlyPack( Event , TParams , UC_WhereTypenameIs( "UC::Event" ) , UC_InheritsUCClassesInBraces( ( Functor<void , TParams...> ) ) , UC_InheritsNoNativeClasses , final );
+	UCTemplateInterfaceWithPack( Event , ( TReturn ) , TParams , UC_WhereTypenameIs( "UC::Event" ) , UC_InheritsUCClassesInBraces( ( Functor<TReturn , TParams...> ) ) , UC_InheritsNoNativeClasses , final );
 	UC_OnlyHasNativeCtors;
 	UC_HasNoMethods;
 
-	using func_t = P_Functor<void , TParams...>;
+	using func_t = P_Functor<TReturn , TParams...>;
 
 	using col_t = std::list<func_t>;
 	typedef typename col_t::value_type value_type;
@@ -1076,7 +1081,40 @@ protected:
 	forceinline const_reverse_iterator crbegin( ) const { return lst.rbegin( ); }
 	forceinline const_reverse_iterator crend( ) const { return lst.rend( ); }
 
-	virtual void Eval( TParams... params ) override { for ( auto& func : lst ) func->Eval( params... ); };
+	virtual TReturn Eval( TParams... params ) override
+	{
+		if constexpr ( std::is_void_v<TReturn> )
+		{
+			for ( auto& func : lst ) func->Eval( params... );
+		}
+		else
+		{
+			const auto sz = Size( );
+			const auto szm1 = sz - 1;
+			auto it = lst.begin( );
+			for ( size_t i = 0; i < sz; i++ , it++ )
+			{
+				if ( szm1 == i )return ( *it )->Eval( params... );
+				( *it )->Eval( params... );
+			}
+			throw NoFunctorsAddedToEvent_Exception( ConcatNatStrings( SGetTypeName( ) , " has no added functors that can return a value that can be returned." ) );
+		}
+	};
+
+	std::conditional_t<std::is_void_v<TReturn> , void , NatVector<TReturn>> EvalAll( TParams... params )
+	{
+		if constexpr ( std::is_void_v<TReturn> )
+		{
+			for ( auto& func : lst ) func->Eval( params... );
+		}
+		else
+		{
+			NatVector<TReturn> vec;
+			vec.reserve( Size( ) );
+			for ( auto& func : lst ) vec.emplace_back( func->Eval( params... ) );
+			return std::move( vec );
+		}
+	}
 
 	template<typename TFunc> func_id Add( TFunc&& func )
 	{
@@ -1091,7 +1129,7 @@ protected:
 		return --lst.end( );
 	}
 
-	forceinline func_id Size( ) { return lst.size( ); }
+	forceinline int64_t Size( ) { return lst.size( ); }
 
 	forceinline void Clear( ) { lst.clear( ); }
 
@@ -1100,7 +1138,7 @@ protected:
 protected:
 	Event( ) :lst( ) { }
 	std::list<func_t> lst;
-	UCEndTemplateInterfaceWithOnlyPack( Event , TParams );
+	UCEndTemplateInterfaceWithPack( Event , ( TReturn ) , TParams );
 #pragma endregion
 
 
@@ -1110,6 +1148,8 @@ protected:
 	{
 		using impl = FunctorImpl<TFunctionToUse , TReturn , TParams...>;
 		using base = Functor<TReturn , TParams...>;
+		using evnt = Event<TReturn , TParams...>;
+		using pevnt = P_Event<TReturn , TParams...>;
 		using pbase = P_Functor<TReturn , TParams...>;
 	};
 
@@ -1118,6 +1158,8 @@ protected:
 	{
 		using impl = FunctorImpl<TFunctionToUse , TReturn , TParams...>;
 		using base = Functor<TReturn , TParams...>;
+		using evnt = Event<TReturn , TParams...>;
+		using pevnt = P_Event<TReturn , TParams...>;
 		using pbase = P_Functor<TReturn , TParams...>;
 	};
 
@@ -1126,6 +1168,8 @@ protected:
 	{
 		using impl = FunctorImpl<TFunctionToUse , TReturn , TParams...>;
 		using base = Functor<TReturn , TParams...>;
+		using evnt = Event<TReturn , TParams...>;
+		using pevnt = P_Event<TReturn , TParams...>;
 		using pbase = P_Functor<TReturn , TParams...>;
 	};
 
@@ -1134,6 +1178,8 @@ protected:
 	{
 		using impl = FunctorImpl<TFunctionToUse , TReturn , TParams...>;
 		using base = Functor<TReturn , TParams...>;
+		using evnt = Event<TReturn , TParams...>;
+		using pevnt = P_Event<TReturn , TParams...>;
 		using pbase = P_Functor<TReturn , TParams...>;
 	};
 
@@ -1142,8 +1188,8 @@ protected:
 	{
 		using impl = FunctorImpl<TFunctionToUse , void , TParams...>;
 		using base = Functor<void , TParams...>;
-		using evnt = Event<TParams...>;
-		using pevnt = P_Event<TParams...>;
+		using evnt = Event<void , TParams...>;
+		using pevnt = P_Event<void , TParams...>;
 		using pbase = P_Functor<void , TParams...>;
 	};
 
@@ -1152,28 +1198,28 @@ protected:
 	{
 		using impl = FunctorImpl<TFunctionToUse , void , TParams...>;
 		using base = Functor<void , TParams...>;
-		using evnt = Event<TParams...>;
-		using pevnt = P_Event<TParams...>;
+		using evnt = Event<void , TParams...>;
+		using pevnt = P_Event<void , TParams...>;
 		using pbase = P_Functor<void , TParams...>;
 	};
 
 	template<typename TFunctionToUse , typename... TParams>
-	struct _FunctionTypeDeducerImpl<P_Event<TParams...> , TFunctionToUse>
+	struct _FunctionTypeDeducerImpl<P_Event<void , TParams...> , TFunctionToUse>
 	{
 		using impl = FunctorImpl<TFunctionToUse , void , TParams...>;
 		using base = Functor<void , TParams...>;
-		using evnt = Event<TParams...>;
-		using pevnt = P_Event<TParams...>;
+		using evnt = Event<void , TParams...>;
+		using pevnt = P_Event<void , TParams...>;
 		using pbase = P_Functor<void , TParams...>;
 	};
 
 	template<typename TFunctionToUse , typename... TParams>
-	struct _FunctionTypeDeducerImpl<Event<TParams...> , TFunctionToUse>
+	struct _FunctionTypeDeducerImpl<Event<void , TParams...> , TFunctionToUse>
 	{
 		using impl = FunctorImpl<TFunctionToUse , void , TParams...>;
 		using base = Functor<void , TParams...>;
-		using evnt = Event<TParams...>;
-		using pevnt = P_Event<TParams...>;
+		using evnt = Event<void , TParams...>;
+		using pevnt = P_Event<void , TParams...>;
 		using pbase = P_Functor<void , TParams...>;
 	};
 
@@ -1182,8 +1228,8 @@ protected:
 	{
 		using impl = FunctorImpl<TFunctionToUse , void , TParams...>;
 		using base = Functor<void , TParams...>;
-		using evnt = Event<TParams...>;
-		using pevnt = P_Event<TParams...>;
+		using evnt = Event<void , TParams...>;
+		using pevnt = P_Event<void , TParams...>;
 		using pbase = P_Functor<void , TParams...>;
 	};
 
@@ -1192,8 +1238,8 @@ protected:
 	{
 		using impl = FunctorImpl<TFunctionToUse , void , TParams...>;
 		using base = Functor<void , TParams...>;
-		using evnt = Event<TParams...>;
-		using pevnt = P_Event<TParams...>;
+		using evnt = Event<void , TParams...>;
+		using pevnt = P_Event<void , TParams...>;
 		using pbase = P_Functor<void , TParams...>;
 	};
 
@@ -1201,6 +1247,8 @@ protected:
 	struct _FunctionTypeDeducerImpl<P_Functor<TReturn , TParams...>>
 	{
 		using base = Functor<TReturn , TParams...>;
+		using evnt = Event<TReturn , TParams...>;
+		using pevnt = P_Event<TReturn , TParams...>;
 		using pbase = P_Functor<TReturn , TParams...>;
 	};
 
@@ -1208,6 +1256,8 @@ protected:
 	struct _FunctionTypeDeducerImpl<Functor<TReturn , TParams...>>
 	{
 		using base = Functor<TReturn , TParams...>;
+		using evnt = Event<TReturn , TParams...>;
+		using pevnt = P_Event<TReturn , TParams...>;
 		using pbase = P_Functor<TReturn , TParams...>;
 	};
 
@@ -1215,6 +1265,8 @@ protected:
 	struct _FunctionTypeDeducerImpl<TReturn( TParams... )>
 	{
 		using base = Functor<TReturn , TParams...>;
+		using evnt = Event<TReturn , TParams...>;
+		using pevnt = P_Event<TReturn , TParams...>;
 		using pbase = P_Functor<TReturn , TParams...>;
 	};
 
@@ -1222,6 +1274,8 @@ protected:
 	struct _FunctionTypeDeducerImpl<TReturn( *)( TParams... )>
 	{
 		using base = Functor<TReturn , TParams...>;
+		using evnt = Event<TReturn , TParams...>;
+		using pevnt = P_Event<TReturn , TParams...>;
 		using pbase = P_Functor<TReturn , TParams...>;
 	};
 
@@ -1229,35 +1283,35 @@ protected:
 	struct _FunctionTypeDeducerImpl<P_Functor<void , TParams...>>
 	{
 		using base = Functor<void , TParams...>;
-		using evnt = Event<TParams...>;
-		using pevnt = P_Event<TParams...>;
+		using evnt = Event<void , TParams...>;
+		using pevnt = P_Event<void , TParams...>;
 		using pbase = P_Functor<void , TParams...>;
 	};
 
 	template<typename... TParams>
-	struct _FunctionTypeDeducerImpl<Functor<void , TParams...> >
+	struct _FunctionTypeDeducerImpl<Functor<void , TParams...>>
 	{
 		using base = Functor<void , TParams...>;
-		using evnt = Event<TParams...>;
-		using pevnt = P_Event<TParams...>;
+		using evnt = Event<void , TParams...>;
+		using pevnt = P_Event<void , TParams...>;
 		using pbase = P_Functor<void , TParams...>;
 	};
 
 	template<typename... TParams>
-	struct _FunctionTypeDeducerImpl<P_Event<TParams...>>
+	struct _FunctionTypeDeducerImpl<P_Event<void , TParams...>>
 	{
 		using base = Functor<void , TParams...>;
-		using evnt = Event<TParams...>;
-		using pevnt = P_Event<TParams...>;
+		using evnt = Event<void , TParams...>;
+		using pevnt = P_Event<void , TParams...>;
 		using pbase = P_Functor<void , TParams...>;
 	};
 
 	template<typename... TParams>
-	struct _FunctionTypeDeducerImpl<Event<TParams...>>
+	struct _FunctionTypeDeducerImpl<Event<void , TParams...>>
 	{
 		using base = Functor<void , TParams...>;
-		using evnt = Event<TParams...>;
-		using pevnt = P_Event<TParams...>;
+		using evnt = Event<void , TParams...>;
+		using pevnt = P_Event<void , TParams...>;
 		using pbase = P_Functor<void , TParams...>;
 	};
 
@@ -1265,8 +1319,8 @@ protected:
 	struct _FunctionTypeDeducerImpl<void( TParams... )>
 	{
 		using base = Functor<void , TParams...>;
-		using evnt = Event<TParams...>;
-		using pevnt = P_Event<TParams...>;
+		using evnt = Event<void , TParams...>;
+		using pevnt = P_Event<void , TParams...>;
 		using pbase = P_Functor<void , TParams...>;
 	};
 
@@ -1274,8 +1328,8 @@ protected:
 	struct _FunctionTypeDeducerImpl<void( *)( TParams... )>
 	{
 		using base = Functor<void , TParams...>;
-		using evnt = Event<TParams...>;
-		using pevnt = P_Event<TParams...>;
+		using evnt = Event<void , TParams...>;
+		using pevnt = P_Event<void , TParams...>;
 		using pbase = P_Functor<void , TParams...>;
 	};
 #pragma endregion

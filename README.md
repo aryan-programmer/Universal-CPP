@@ -8,7 +8,7 @@
 ## <span style="color:red">× To implement</span> || <span style="color:green">√ Implemented</span> Features ← From Languages
 
 ### <span style="color:green">√ Garbage Collection  ← Objective-C</span>
-Like Objective-C, UC++ supports GC, but only ARC (Automatic Reference Counting) style GC is supported, like in Objective-C where ARC is the recommended method.
+Like Objective-C, UC++ support s GC, but only ARC (Automatic Reference Counting) style GC is supported, like in Objective-C where ARC is the recommended method.
 
 ------
 
@@ -131,13 +131,21 @@ There are 3 core things to 'delegates' or functors
 
 Events are technically from C#. However they are also implemented in Qt (& Boost), but there they are called as signals and the functions which register to them are called slots. In C#, signals and slots are referred to as events and delegates. In UC++, signals and slots are referred to as events and functors (would you rather prefer "Group of UC++ GC pointer to function object" and "UC++ GC pointer to function object").
 
+The template parameters for an event are the same as a functor `UC::Event<TReturn, TParameters...>`.
+
 To create an event use `?event-type::Make()?` and assign it to a variable to class field.
 
-To add a function, function-object, lambda or closure use `?event?->Add(?function/function-object/lambda/closure to-add?)`. To add a `UC::Function` use `?event?->AddF(?functor?)`. The return value of these functions is the id of the functor added, hold onto it if you want to erase it later.
+To add a function, function-object, lambda or closure use `?event?->Add(?function/function-object/lambda/closure to-add?)`. To add a `UC::Function` use `?event?->AddF(?functor?)`. The return value of these functions is the id of the functor added, hold onto it if you want to erase the functor later.
 
 To remove a functor using it's id use `?event?->Remove(?id?)`.
 
-To invoke the event use `?event?->Eval(?parameters?...)` with the designated <span style="color:green">?parameters?...</span>
+To invoke the event use `?event?->Eval(?parameters?...)` with the designated <span style="color:green">?parameters?...</span>. If the functor returns a value then `Eval` returns the return value of the last function, if there are no functors added then an error of type `UC::NoFunctorsAddedToEvent_Exception`, with the message
+
+```C++
+"UC::Event<TReturn, TParameters...> has no added functors that can return a value that can be returned."
+```
+
+If you want to get the return value of all the functions in a `UC::NatVector<TReturn>` use `?event?->EvalAll(?parameters?...)` with the designated <span style="color:green">?parameters?...</span>. Obviously, if the functors return `void` then `EvalAll` will not return a `UC::NatVector<void>`. In reality, `EvalAll` will call all the functions and return `void`. If there are no functors added then the returned vector will have size `0`.
 
 An event is a functor, i.e. you can chain events, i.e. subscribe an event to an event.
 
