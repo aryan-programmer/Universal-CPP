@@ -4,13 +4,6 @@
 #include "stdafx.h"
 #include "Interface.hpp"
 #include "byte.hpp"
-#include <exception>
-#include <stdexcept>
-#include <boost\type_traits\remove_reference.hpp>
-#include <boost\type_traits\is_detected.hpp>
-#include <boost\type_traits\add_const.hpp>
-#include <boost\type_traits\add_reference.hpp>
-#include <boost\type_traits\remove_cv_ref.hpp>
 
 namespace UC
 {

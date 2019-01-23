@@ -2,10 +2,6 @@
 #ifndef __UC__INTERFACE_MACROS__HPP__
 #define __UC__INTERFACE_MACROS__HPP__
 #include "common_mcr.hpp"
-#include <boost\preprocessor\arithmetic\inc.hpp>
-#include <boost\preprocessor\comparison\less.hpp>
-#include <boost\preprocessor\tuple\to_list.hpp>
-#include <boost\preprocessor\list\for_each_i.hpp>
 
 #define __UCGetGetMethodParams(tup) __UCMethodParams(BOOST_PP_TUPLE_TO_LIST(BOOST_PP_TUPLE_ELEM(1, tup)))
 #define __UCNothing(...)

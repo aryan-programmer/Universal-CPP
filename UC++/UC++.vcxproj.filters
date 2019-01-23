@@ -33,6 +33,9 @@
     <ClInclude Include="byte.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Generator.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
