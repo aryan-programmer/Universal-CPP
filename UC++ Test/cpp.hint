@@ -1,0 +1,4 @@
+// Hint files help the Visual Studio IDE interpret Visual C++ identifiers
+// such as names of functions and macros.
+// For more information see https://go.microsoft.com/fwlink/?linkid=865984
+#define UCGen(retType, name, params, __VA_ARGS__) ::UC::Generator<::boost::remove_cv_ref_t<BOOST_PP_REMOVE_PARENS(retType)>> name (__UC_TUPLE_FOR_EACH_I(__UC_genParams,params)) UCGenBeg(retType, params, __VA_ARGS__)
