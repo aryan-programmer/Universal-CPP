@@ -410,7 +410,7 @@ namespace UC
 	}
 
 	template<typename T>
-	GCP<T> asNotNull( GCP<T> v , const char* msg )
+	GCP<T> asNotNull( GCP<T>&& v , const char* msg )
 	{
 		if ( v == nullptr )throw PreNullPointerException( msg );
 		return std::move( v );
@@ -842,13 +842,13 @@ public:\
 					std::to_string( Size( ) ) ) );\
 		coll.erase( begin( ) + index );\
 	}\
+	template<typename... Args>\
+	pself MakeI(Args&&... args){return pself(new self{std::forward<Args>(args)...});}\
 protected:\
 	inline name( uint64_t len ) : coll( len ) { }\
 	template<typename TIter>\
 	forceinline name( const TIter& beg , const TIter& end ) : coll( beg , end ) { }\
 	forceinline name( std::initializer_list<T> init ) : coll( init ) { }\
-	template<typename... Args>\
-	pself MakeI(Args&&... args){return pself(new self{std::forward<Args>(args)...});}\
 UCEndTemplateInterface( name , ( T ) );\
 \
 template<typename _T>\

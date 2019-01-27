@@ -161,6 +161,7 @@
   <ItemGroup>
     <ClInclude Include="byte.hpp" />
     <ClInclude Include="common_mcr.hpp" />
+    <ClInclude Include="Coroutine.hpp" />
     <ClInclude Include="Generator.hpp" />
     <ClInclude Include="Interface.hpp" />
     <ClInclude Include="Object.hpp" />
@@ -168,6 +169,7 @@
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Coroutine.cpp" />
     <ClCompile Include="Object.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

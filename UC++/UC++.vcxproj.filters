@@ -36,12 +36,18 @@
     <ClInclude Include="Generator.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Coroutine.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Object.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Coroutine.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

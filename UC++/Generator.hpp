@@ -97,11 +97,13 @@ namespace UC
 		Generator( ) :ival( ) { }
 		Generator( Internal&& ival2 ) :ival( std::move( ival2 ) ) { }
 		Generator& operator=( Internal&& ival2 ) { ival = std::move( ival2 ); }
+		Generator( Generator&& g ) :ival( std::move( g.ival ) ) { }
+		Generator& operator=( Generator&& g ) { ival = std::move( g.ival ); }
 
 		explicit operator bool( ) { return ival != nullptr; }
 		Generator& operator()( TInp... params )
 		{
-			if ( ival != nullptr && !( ival( val , params... ) ) ) { ival != nullptr = false; };
+			if ( ival != nullptr && !( ival( val , params... ) ) ) { ival = false; };
 			return *this;
 		}
 		___UC_NODISCARD___ const T& operator*( ) const { return val; }
@@ -182,7 +184,7 @@ namespace UC
 #define __UC_TUPLE_FOR_EACH_I(macro, t) BOOST_PP_IF(BOOST_PP_IS_EMPTY t, __UC_TUPLE_FOR_EACH_I_EMPTY, __UC_TUPLE_FOR_EACH_I_IMPL)(macro, t)
 
 #define __UC_REM(...)
-#define __UC_captureParams(r, data, i, elem) BOOST_PP_COMMA_IF(i) __UC_REM elem = std::forward<decltype(__UC_REM elem)>( __UC_REM elem )
+#define __UC_captureParams(r, data, i, elem) __UC_REM elem = std::forward<decltype(__UC_REM elem)>( __UC_REM elem ),
 #define __UC_genParams(r, data, i, elem) BOOST_PP_COMMA_IF(i) __UCEXP elem
 #define __UC_genInvocParams(r, data, i, elem) BOOST_PP_COMMA_IF(i) BOOST_PP_SEQ_ELEM(0, elem ) BOOST_PP_SEQ_ELEM(1, elem )
 #define __UC_genInvocTypeParams(r, data, i, elem) BOOST_PP_COMMA_IF(i) BOOST_PP_SEQ_ELEM(0, elem )
@@ -190,7 +192,7 @@ namespace UC
 #define UCGenBeg(retType, params, ...) \
 {\
 	using __uc_gen_holder_ = ::UC::_Detail::_GeneratorFuncHld<BOOST_PP_REMOVE_PARENS(retType)>;\
-	return ::UC::Generator<BOOST_PP_REMOVE_PARENS(retType)>( __uc_gen_holder_( [__UC_TUPLE_FOR_EACH_I(__UC_captureParams,params), __uc_coro_last_line = ::UC::_Detail::LineRecordType( 0 ), __uc_coro_makes_non_copyable = ::UC::_Detail::makes_noncopyable(), __VA_ARGS__](BOOST_PP_REMOVE_PARENS(retType)& __uc_coro_ret_val) mutable{\
+	return ::UC::Generator<BOOST_PP_REMOVE_PARENS(retType)>( __uc_gen_holder_( [__UC_TUPLE_FOR_EACH_I(__UC_captureParams,params) __uc_coro_last_line = ::UC::_Detail::LineRecordType( 0 ), __uc_coro_makes_non_copyable = ::UC::_Detail::makes_noncopyable(), __VA_ARGS__](BOOST_PP_REMOVE_PARENS(retType)& __uc_coro_ret_val) mutable{\
 		if(__uc_coro_last_line == -1) { return false; }\
 		switch(__uc_coro_last_line){\
 		case 0:;
@@ -205,7 +207,7 @@ namespace UC
 #define UCBDGenBeg(retType, params, invocParams, ...) \
 {\
 	using __uc_gen_holder_ = ::UC::_Detail::_GeneratorFuncHld<BOOST_PP_REMOVE_PARENS(retType), __UC_TUPLE_FOR_EACH_I(__UC_genInvocTypeParams,invocParams)>;\
-	return ::UC::Generator<BOOST_PP_REMOVE_PARENS(retType),__UC_TUPLE_FOR_EACH_I(__UC_genInvocTypeParams,invocParams)>(__uc_gen_holder_([__UC_TUPLE_FOR_EACH_I(__UC_captureParams,params), __uc_coro_last_line = ::UC::_Detail::LineRecordType( 0 ), __uc_coro_makes_non_copyable = ::UC::_Detail::makes_noncopyable(), __VA_ARGS__](BOOST_PP_REMOVE_PARENS(retType)& __uc_coro_ret_val, __UC_TUPLE_FOR_EACH_I(__UC_genInvocParams,invocParams)) mutable\
+	return ::UC::Generator<BOOST_PP_REMOVE_PARENS(retType),__UC_TUPLE_FOR_EACH_I(__UC_genInvocTypeParams,invocParams)>(__uc_gen_holder_([__UC_TUPLE_FOR_EACH_I(__UC_captureParams,params) __uc_coro_last_line = ::UC::_Detail::LineRecordType( 0 ), __uc_coro_makes_non_copyable = ::UC::_Detail::makes_noncopyable(), __VA_ARGS__](BOOST_PP_REMOVE_PARENS(retType)& __uc_coro_ret_val, __UC_TUPLE_FOR_EACH_I(__UC_genInvocParams,invocParams)) mutable\
 	{\
 		if(__uc_coro_last_line == -1) { return false; }\
 		switch(__uc_coro_last_line){\
@@ -218,28 +220,28 @@ namespace UC
 	}));\
 };
 
-#define UCBDGenLambda(retType, params, invocParams, ...) \
+#define UCBDGenLambda(retType, params, invocParams, ...) -> ::UC::Generator<BOOST_PP_REMOVE_PARENS(retType),__UC_TUPLE_FOR_EACH_I(__UC_genInvocTypeParams,invocParams)>\
 (__UC_TUPLE_FOR_EACH_I(__UC_genParams,params)) UCBDGenBeg(retType, params, invocParams, __VA_ARGS__)
 
-#define UCBDGen(retType, name, params, invocParams, ...) auto name (__UC_TUPLE_FOR_EACH_I(__UC_genParams,params)) UCBDGenBeg(retType, params, invocParams, __VA_ARGS__)
+#define UCBDGen(retType, name, params, invocParams, ...) ::UC::Generator<BOOST_PP_REMOVE_PARENS(retType),__UC_TUPLE_FOR_EACH_I(__UC_genInvocTypeParams,invocParams)> name (__UC_TUPLE_FOR_EACH_I(__UC_genParams,params)) UCBDGenBeg(retType, params, invocParams, __VA_ARGS__)
 
-#define UCGenLambda(retType, params, ...) \
+#define UCGenLambda(retType, params, ...) -> ::UC::Generator<BOOST_PP_REMOVE_PARENS(retType)> \
 (__UC_TUPLE_FOR_EACH_I(__UC_genParams,params)) UCGenBeg(retType, params, __VA_ARGS__)
 
-#define UCGen(retType, name, params, ...) auto name (__UC_TUPLE_FOR_EACH_I(__UC_genParams,params)) UCGenBeg(retType, params, __VA_ARGS__)
+#define UCGen(retType, name, params, ...) ::UC::Generator<BOOST_PP_REMOVE_PARENS(retType)> name (__UC_TUPLE_FOR_EACH_I(__UC_genParams,params)) UCGenBeg(retType, params, __VA_ARGS__)
 
-#define UCYieldReturn do {\
+#define UCYieldEsc do {\
 	__uc_coro_last_line = -1;\
 	return false;\
 } while (0)
 
-#define __UCYield(V, id)\
+#define __UCYield(id, ...)\
 do {\
 	__uc_coro_last_line=id;\
-	__uc_coro_ret_val = (V); return true; case id:;\
+	__uc_coro_ret_val = (__VA_ARGS__); return true; case id:;\
 } while (0)
 
-#define UCYield(V) __UCYield(V, __UC_MostlyUniquePreprocessingTimeInt)
+#define UCYield(...) __UCYield(__UC_MostlyUniquePreprocessingTimeInt, __VA_ARGS__)
 
 #define __UC_SWITCH_LABEL(n) BOOST_PP_CAT(BOOST_PP_CAT(_uc_gen_sw_case_, __LINE__), n)
 
