@@ -7,7 +7,7 @@
 #include "Object.hpp"
 
 // From Boost.ScopeExit: MSVC has problems expanding __LINE__ so use (the non standard) __COUNTER__.
-#ifdef BOOST_MSVC
+#ifdef __COUNTER__
 #   define __UC_MostlyUniquePreprocessingTimeInt __COUNTER__
 #else
 #   define __UC_MostlyUniquePreprocessingTimeInt __LINE__

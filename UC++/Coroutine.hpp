@@ -15,7 +15,6 @@ namespace UC
 	namespace Coro
 	{
 		struct Coroutine;
-		class Scheduler;
 
 	#pragma region YieldInstruction
 		UCInterface( YieldInstruction , UC_WhereTypenameIs( "UC::Coro::YieldInstruction" ) , UC_InheritsUCClasses( Object ) , UC_InheritsNoNativeClasses );
@@ -23,12 +22,12 @@ namespace UC
 		UC_HasNoMethods;
 	public:
 		virtual bool Finished( ) = 0;
-		virtual void OnUpdate( Scheduler& , GCP<Coroutine> ) { }
+		virtual void OnUpdate( GCP<Coroutine> ) { }
 		UCEndInterface( YieldInstruction );
 	#pragma endregion
 
 
-		using GeneratorForCoroutine = Generator<P_YieldInstruction , Scheduler& , GCP<Coroutine>>;
+		using GeneratorForCoroutine = Generator<P_YieldInstruction , GCP<Coroutine>>;
 
 
 	#pragma region Coroutine
@@ -107,7 +106,14 @@ namespace UC
 		UC_OnlyHasNativeCtors;
 		UC_HasNoMethods;
 	public:
-		bool Finished( ) { return std::all_of( coros.begin( ) , coros.end( ) , [ ] ( const P_Coroutine& c ) { return c->__finished; } ); }
+		bool Finished( )
+		{
+			for ( auto& i : coros )
+			{
+				if ( !i->__finished )return false;
+			}
+			return true;
+		}
 		template<typename... Ts> static pself MakeI( Ts&&... vs ) { return pself( new self { std::forward<Ts>( vs )... } ); }
 	protected:
 		NatVector<P_Coroutine> coros;
@@ -123,7 +129,7 @@ namespace UC
 		UC_IsSingleton;
 		UC_HasNoMethods;
 	public:
-		void OnUpdate( Scheduler& sched , P_Coroutine coro );
+		void OnUpdate( P_Coroutine coro );
 		bool Finished( ) { return false; }
 	protected:
 		WhenCalledStop( ) { }
@@ -165,90 +171,6 @@ namespace UC
 	namespace Coro
 	{
 		/// <summary>
-		/// This class manages the creation, destruction, and updation of coroutines. It is required if you need fine grained control over when the coroutines are updated.
-		/// <para>
-		/// NOTE: You will need to call .Update to update the coroutines, if you want .Update to be called automatically use Threader instead.
-		/// </para>
-		/// </summary>
-		class Scheduler :boost::noncopyable
-		{
-			std::list<P_Coroutine> lst;
-
-			/// <summary>
-			/// Executes coroutine until next yield. If coroutine has finished, flags
-			/// it as finished and removes it from scheduler list.
-			/// </summary>
-			/// <param name="coroutine"></param>
-			void UpdateCoroutine( P_Coroutine coroutine );
-		public:
-
-			/// <summary>
-			/// Starts a coroutine, the coroutine does not run immediately but on the
-			/// next call to Update. The execution of a coroutine can
-			/// be paused at any point using the yield statement. The yield return value
-			/// specifies when the coroutine is resumed.
-			/// </summary>
-			/// <param name="fiber">The generator which will be wrapped as a coroutine</param>
-			/// <returns>The coroutine generated.</returns>
-			P_Coroutine Start( GeneratorForCoroutine&& fiber );
-
-			/// <summary>
-			/// Returns true if this scheduler has any coroutines. You can use this to
-			/// check if all coroutines have finished or been stopped.
-			/// </summary>
-			/// <returns>true if this scheduler has any coroutines.</returns>
-			bool HasCoroutines( ) const noexcept;
-
-			/// <summary>
-			/// Runs all active coroutines until their next yield.
-			/// </summary>
-			void Update( );
-
-			/// <summary>
-			/// Removes the specified coroutine from the scheduled coroutine list.
-			/// </summary>
-			/// <param name="coroutine"></param>
-			void Stop( P_Coroutine coroutine );
-		};
-
-		/// <summary>
-		/// This class is a wrapper around Scheduler that automatically calls .Update on a separate thread each UC_COROUTINE_FIXED_UPDATE_TIME_IN_MS.
-		/// </summary>
-		class Threader :boost::noncopyable
-		{
-			Scheduler sched;
-			boost::mutex mtx;
-			boost::thread thread;
-		public:
-			static Threader& I( );
-
-			Threader( );
-
-			/// <summary>
-			/// Starts a coroutine, the coroutine does not run immediately but on the
-			/// next automatic call to Update. The execution of a coroutine can
-			/// be paused at any point using the yield statement. The yield return value
-			/// specifies when the coroutine is resumed.
-			/// </summary>
-			/// <param name="fiber">The generator which will be wrapped as a coroutine</param>
-			/// <returns>The coroutine generated.</returns>
-			P_Coroutine Start( GeneratorForCoroutine&& fiber );
-
-			/// <summary>
-			/// Returns true if this scheduler has any coroutines. You can use this to
-			/// check if all coroutines have finished or been stopped.
-			/// </summary>
-			/// <returns>true if this scheduler has any coroutines.</returns>
-			bool HasCoroutines( ) const noexcept;
-
-			/// <summary>
-			/// Removes the specified coroutine from the scheduled coroutine list.
-			/// </summary>
-			/// <param name="coroutine"></param>
-			void Stop( P_Coroutine coroutine );
-		};
-
-		/// <summary>
 		/// Starts a coroutine, the coroutine does not run immediately but on the
 		/// next automatic call to Update. The execution of a coroutine can
 		/// be paused at any point using the yield statement. The yield return value
@@ -256,13 +178,13 @@ namespace UC
 		/// </summary>
 		/// <param name="fiber">The generator which will be wrapped as a coroutine</param>
 		/// <returns>The coroutine generated.</returns>
-		forceinline P_Coroutine Start( GeneratorForCoroutine&& fiber ) { return Threader::I( ).Start( std::move( fiber ) ); }
+		P_Coroutine Start( GeneratorForCoroutine&& fiber );
 
 		/// <summary>
 		/// Removes the specified coroutine from the scheduled coroutine list.
 		/// </summary>
 		/// <param name="coroutine"></param>
-		forceinline void Stop( P_Coroutine coroutine ) { Threader::I( ).Stop( coroutine ); }
+		void Stop( P_Coroutine coroutine );
 
 		static P_WaitForMillis WaitForSec( long double param )
 		{
@@ -276,13 +198,13 @@ namespace UC
 		static P_WhenCalledStop Stop( ) { return WhenCalledStop::Make( ); }
 
 		template<typename... Ts>
-		static P_TransferToAll ExecTransferToAll( Scheduler& sched , Ts&&... vs ) { return TransferToAll::MakeI( sched.Start( std::move( vs ) )... ); }
+		static P_TransferToAll ExecTransferToAll( Ts&&... vs ) { return TransferToAll::MakeI( Start( std::move( vs ) )... ); }
 	}
 }
 
-#define UCCoro(name, params, ...) UCBDGen(::UC::Coro::P_YieldInstruction, name, params, ((::UC::Coro::Scheduler&)(UCScheduler) , (::UC::Coro::P_Coroutine)(UCCoroutineID)), __VA_ARGS__) using namespace ::UC::Coro::CoroLiterals;
-#define UCCoroLambda(params, ...) UCBDGenLambda(::UC::Coro::P_YieldInstruction, params, ((::UC::Coro::Scheduler&)(UCScheduler) , (::UC::Coro::P_Coroutine)(UCCoroutineID)), __VA_ARGS__) using namespace ::UC::Coro::CoroLiterals;
-#define UCCoroBeg(params, ...) UCBDGenBeg(::UC::Coro::P_YieldInstruction, params, ((::UC::Coro::Scheduler&)(UCScheduler) , (::UC::Coro::P_Coroutine)(UCCoroutineID)), __VA_ARGS__) using namespace ::UC::Coro::CoroLiterals;
+#define UCCoro(name, params, ...) UCBDGen(::UC::Coro::P_YieldInstruction, name, params, ((::UC::Coro::P_Coroutine)(UCCoroutineID)), __VA_ARGS__) using namespace ::UC::Coro::CoroLiterals;
+#define UCCoroLambda(params, ...) UCBDGenLambda(::UC::Coro::P_YieldInstruction, params, ((::UC::Coro::P_Coroutine)(UCCoroutineID)), __VA_ARGS__) using namespace ::UC::Coro::CoroLiterals;
+#define UCCoroBeg(params, ...) UCBDGenBeg(::UC::Coro::P_YieldInstruction, params, ((::UC::Coro::P_Coroutine)(UCCoroutineID)), __VA_ARGS__) using namespace ::UC::Coro::CoroLiterals;
 #define UCCoroEnd UCBDGenEnd
 
-#define UCAwait(...) UCYield( ::UC::Coro::ExecTransferToAll( UCScheduler, __VA_ARGS__ ) )
+#define UCAwait(...) UCYield( ::UC::Coro::ExecTransferToAll( __VA_ARGS__ ) )
