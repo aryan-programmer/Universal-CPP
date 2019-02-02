@@ -1,5 +1,6 @@
 #pragma once
-
+#ifndef __UC__COROUTINE_HPP__
+#define __UC__COROUTINE_HPP__
 #include "stdafx.h"
 #include "Object.hpp"
 #include "Generator.hpp"
@@ -208,3 +209,4 @@ namespace UC
 #define UCCoroEnd UCBDGenEnd
 
 #define UCAwait(...) UCYield( ::UC::Coro::ExecTransferToAll( __VA_ARGS__ ) )
+#endif // !__UC__COROUTINE_HPP__

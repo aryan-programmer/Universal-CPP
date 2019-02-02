@@ -1,5 +1,6 @@
 #pragma once
-
+#ifndef __UC__GENERATOR_HPP__
+#define __UC__GENERATOR_HPP__
 #include "stdafx.h"
 #include <boost\type_traits\remove_cv_ref.hpp>
 #include "common_mcr.hpp"
@@ -276,3 +277,4 @@ __UC_SWITCH(n, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__), goto label, label: continu
 __UC_SWITCH_2(n, BOOST_PP_CAT(__uc_gen_sw_cont_, __LINE__), __VA_ARGS__)
 
 #define UCGenSwitch(n, ...) __UC_SWITCH(n, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__), throw ::UC::ContinueStatementInSwitchStatementInAGenerator("There can't be a continue statement in a switch statement in a generator."), )
+#endif // !__UC__GENERATOR_HPP__

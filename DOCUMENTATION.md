@@ -1,4 +1,4 @@
-![UC++ Logo in Iosevka SS03](E:\C++ Projects\UC++\Logo.png)
+![UC++ Logo in Iosevka SS03](.\Logo.png)
 
 # UC++ Documentation
 
@@ -20,7 +20,6 @@
 This macro is defined as being equal to <span style="color:purple">BOOST_FORCEINLINE</span>, which is defined as
 
 ```C++
-// BOOST_FORCEINLINE ---------------------------------------------//
 // Macro to use in place of 'inline' to force a function to be inline
 #if !defined(BOOST_FORCEINLINE)
 #  if defined(_MSC_VER)
@@ -54,7 +53,7 @@ This macro is defined as being equal to <span style="color:purple">BOOST_FORCEIN
 
 ### Remember, always make constructors `protected` or `private` **<u>_never_</u>** `public`.
 
-To use certain things like <span style="color:purple">ME</span> or <span style="color:purple">WME</span> the object has to be constructed as a `UC::GCPtr` but if the object is called with the `public` constructor then there will be undefined behaviour. So, to avoid that always make constructors `protected` or `private` **<u>_never_</u>** `public`.
+To use certain things like <span style="color:purple">ME</span> or <span style="color:purple">WME</span> the object has to be constructed as a `UC::GCPtr` but if the object is called with the `public` constructor then there will be undefined behavior. So, to avoid that always make constructors `protected` or `private` **<u>_never_</u>** `public`.
 
 ### <span style="color:purple">UC_IsSingleton</span>
 
@@ -69,7 +68,7 @@ static pself Make(){
 
 Where `self` refers to the class in which <span style="color:purple">UC_IsSingleton</span> is being expanded, and `pself` is equal to `UC::GCPtr<self>`. The macro also defines `GetInstance()`, `GetInst()`, `GetI()`, `Instance()` and `Inst()` which all call Make(). 
 
-NOTE: The functions `GetInstance()`, `GetInst()`, `GetI()`, `Instance()` and `Inst()` are all declared as <span style="color:purple">forceinline</span> so calling either `GetInstance()`, `GetInst()`, `GetI()`, `Instance()` or `Inst()` is equivalent to calling `Make()`.
+NOTE: The functions `GetInstance()`, `GetInst()`, `GetI()`, `Instance()` and `Inst()` are all <span style="color:purple">forceinline</span> so calling either `GetInstance()`, `GetInst()`, `GetI()`, `Instance()` or `Inst()` is equivalent to calling `Make()`.
 
 #### OR
 
@@ -167,7 +166,7 @@ Dynamically allocating and throwing a small <span style="color:purple">UCExcepti
 
 `?exeception-type?::Make(?message?)` is an expression that would work for a <span style="color:purple">UCInterface</span> <span style="color:purple">UCException</span> but Remember <span style="color:purple">UCException</span>s aren't <span style="color:purple">UCInterface</span>s.
 
-### Remember always and only use `try{...}catch(const ?exeception-type?& v){...}//more-catch-clauses` for catching <span style="color:purple">UCException</span>s.
+### Remember: always and only use `try{...}catch(const ?exeception-type?& v){...}//more-catch-clauses` for catching <span style="color:purple">UCException</span>s.
 
 If you use
 
@@ -460,4 +459,174 @@ To invoke the event use `?event?->Eval(?parameters?...)` with the designated <sp
 
 If you want to get the return value of all the functions in a `UC::NatVector<TReturn>` use `?event?->EvalAll(?parameters?...)` with the designated <span style="color:green">?parameters?...</span>. Obviously, if the functors return `void` then `EvalAll` will not return a `UC::NatVector<void>`. In reality, `EvalAll` will call all the functions and return `void`. If there are no functors added then the returned vector will have size `0`.
 
-An event is a functor, i.e. you can chain events, i.e. subscribe an event to an event.
+### An event **<u>_is_</u>** a functor, i.e. **<u>_you can chain events_</u>**, i.e. **<u>_subscribe an event to an event_</u>**!
+
+## UC++ Generators
+
+> In computer science, a generator is a special routine that can be used to control the iteration behaviour of a loop. In fact, all generators are iterators. A generator is very similar to a function that returns an array, in that a generator has parameters, can be called, and generates a sequence of values. However, instead of building an array containing all the values and returning them all at once, a generator yields the values one at a time, which requires less memory and allows the caller to get started processing the first few values immediately. In short, a generator looks like a function but behaves like an iterator.
+
+From [Wikipedia:Generator (computer programming)](https://en.wikipedia.org/wiki/Generator_(computer_programming))
+
+The generators in UC++ do fulfil the above requirements but UC++ generators can do more, much much more. 
+
+But first, an example of unidirectional generators:
+
+```C++
+#include <iostream>
+#include <Generator.hpp>
+
+UCGen( int , Fibbonacci , ( ( int ) a , ( int ) b ) , c = 0 )
+{
+	UCYield( a );
+	UCYield( b );
+	for ( ;; )
+    {
+		c = a + b;
+		a = b;
+		b = c;
+		UCYield( c );
+	}
+}
+UCGenEnd
+
+
+int main()
+{
+	using namespace std;
+	auto gen = Fibbonacci( 1 , 1 );
+	for ( size_t i = 0; i < 29; ++i )
+        cout << *gen( ) << ', ';
+}
+```
+
+Lets go through the line by line:
+
+Line 1: `#include <iostream>` : Include the `iostream` header for output
+
+Line 2: `#include <Generator.hpp>` : Includes the `Generator.hpp` header from UC++ for the generator types and macros.
+
+Line 4: `UCGen( int , Fibbonacci , ( ( int ) a , ( int ) b ) , c = 0 )` : Define the start of the generator, the 1<sup>st</sup> parameter is the return type, the 2<sup>nd</sup> is the name of the generator, the 3<sup>rd</sup> is tuple of the parameters of the generator function, the types of the parameters have to be enclosed in parenthesis, and the final variadic parameters are the local variables, the types of the variables don't have to be specified.
+
+Line 6: `UCYield( a );` : This inserts the appropriate code for returning from the function when called & resuming back from that very same point. When execution reaches this point, the function exits with the return value being `a` and when the generator is called again, execution resumes this point of execution.
+
+Line 7: `UCYield( b );` : Same as above, but this time the `b` will be the return value.
+
+Lines 8 to 12 have normal C++ code.
+
+Line 13: `UCYield( c );` : Same as Line 6 & 7, but this time the `c` will be the return value.
+
+Lines 14 to 21 also have normal C++ code.
+
+Line 22: `auto gen = Fibbonacci( 1 , 1 );` : The generator function returns a 1-pass, non-linear "container", though a generator in reality, to use the values from the generator we have to store the generator as a variable. Now, when the function `Fibbonacci( 1 , 1 )` is called, the generator doesn't execute even a bit, the generator executes when you increment the iterator, or move the generator forward. Note: `gen` will be of type `UC::Generator<int>`.
+
+Line 23 is a for loop which loops 29 times.
+
+Line 24: `cout << *gen( ) << ', ';` : Let's concentrate on the `*gen()` part. As you know, to get the values of the generator we have either to increment the iterator as `++gen.begin()`, which will only move the generator forward but to get the value we have to write `*(++gen.begin())`. Or you could directly move the generator forward with `gen()`, to get the value write `*gen()`, much cleaner. Note: `gen()` returns `gen`.
+
+
+
+Q. Can you guess the output?
+
+A. Here's this code's output:
+
+```pseudocode
+1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987, 1597, 2584, 4181, 6765, 10946, 17711, 28657, 46368, 75025, 121393, 196418, 317811, 514229, 
+```
+
+
+
+##### Q. In regular generators, are you able to pass parameters to generator each time the generator is **<u>_incremented, <span style="color:red">not instantiated/called</span>?_</u>**
+
+##### A. No?
+
+##### A. Correction: Yes! With UC++'s bidirectional generators, you can pass parameters to generator each time the generator is incremented. But each time the generator is incremented then you **<u>_need_</u>** to pass in these InovcParameters specified.
+
+
+
+### Bidirectional generators
+
+Here is an example of a bidirectional generator:
+
+```C++
+#include <iostream>
+#include <Generator.hpp>
+
+enum class Operator {NOP , Add , Sub , Mul , Div , Mod , Pow , Rst};
+
+UCBDGen( int64_t , Accumulator , ( ( int64_t ) val ) , ( ( Operator ) ( op ) , ( int64_t ) ( newVal ) ) );
+{
+	while ( true )
+	{
+		/**/ if ( op == Operator::Add )val = val + newVal;
+		else if ( op == Operator::Sub )val = val - newVal;
+		else if ( op == Operator::Mul )val = val * newVal;
+		else if ( op == Operator::Div )val = val / newVal;
+		else if ( op == Operator::Mod )val = val % newVal;
+		else if ( op == Operator::Pow )val = static_cast<int64_t>( std::pow( val , newVal ) );
+		else if ( op == Operator::Rst )val = newVal;
+        
+		UCYield( val );
+	}
+}
+UCBDGenEnd;
+
+
+int main()
+{
+    using namespace std;
+    auto acc = Accumulator( 0 );
+	cout << *acc( Operator::Sub , 2 ) << endl;
+	cout << *acc( Operator::Add , 4 ) << endl;
+	cout << *acc( Operator::Div , 2 ) << endl;
+	cout << *acc( Operator::Mul , 4 ) << endl;
+	cout << *acc( Operator::Pow , 4 ) << endl;
+	cout << *acc( Operator::Mod , 10 ) << endl;
+	cout << *acc( Operator::Rst , 256 ) << endl;
+}
+```
+
+Let's jump to line 6: 
+
+```C++
+UCBDGen( int64_t , Accumulator , ( ( int64_t ) val ) , ( ( Operator ) ( op ) , ( int64_t ) ( newVal ) ) );
+```
+
+See the new macro? This new macro <span style="color:purple">UCBDGen</span>, it's similar to the previous one <span style="color:purple">UCGen</span> but this one supports InovcParameters, parameters called each incrementation of of the generator. 
+
+Now to line 27: `auto acc = Accumulator( 0 );` : The generator function again returns a generator in which to use the values from the generator we have to store the generator as a variable. Again, when the function `Accumulator( 0 )` is called, the generator doesn't execute even a bit, the generator executes when you move the generator forward. Note: `gen` will be of type `UC::Generator<int, Operator, int64_t>`.
+
+Line 28: `cout << *acc( Operator::Sub , 2 ) << endl;` : Let's focus on the `*acc( Operator::Sub , 2 )` part. Now if this was a normal generator you had to write `acc()` to increment it, but `acc` is a bidirectional generator, i.e. transfer of data takes place from the caller to the function and function to the caller, not just function to the caller as with unidirectional generators. In this function call `Operator::Sub` will be the value of the parameter `op` in the body of `Accumulator` only for this incrementation and `2` will be the value of the parameter `newVal` in the body of `Accumulator` again only for this incrementation. The value <span style="color:purple">UCYield</span>ed by `Accumulator` can be retrieved as `*acc`, but `acc( Operator::Sub , 2 )` just returns `acc`, so we can write `*acc( Operator::Sub , 2 )`, to increment the iterator with the InovcParameters & get the value that was <span style="color:purple">UCYield</span>ed.
+
+Same thing for Lines 29 to 34.
+
+
+
+Q. Can you anticipate the output?
+
+A. Here's this code's output:
+
+```pseudocode
+-2
+2
+1
+4
+256
+6
+256
+```
+
+
+
+### Remember that iterators aren't supported for bidirectional generators.
+
+Iterators aren't supported for bidirectional generators because in bidirectional generators InovcParameters have to be passed for each incrementation.
+
+### Don't mix up bidirectional **<u>_generators_</u>** and bidirectional **<u>_iterators_</u>**. 
+
+They are in no way similar, but still the differences are listed below.
+
+|           Bidirectional **<u>_iterators_</u>**            |            Bidirectional **<u>_generators_</u>**             |
+| :-------------------------------------------------------: | :----------------------------------------------------------: |
+| Don't support 2 way traversal <br/>of the data structure. | Don't support 2 way traversal <br/>of the generated values.  |
+|          Don't Allow for 2 way transfer of data.          | Allow for 2 way transfer of data <br/>between the caller and the function. |
+
