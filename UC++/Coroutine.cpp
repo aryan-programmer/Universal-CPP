@@ -7,28 +7,48 @@ namespace UC
 	{
 		void WhenCalledStop::OnUpdate( P_Coroutine coro ) { Stop( coro ); };
 
-		static std::list<P_Coroutine> lst;
-		static boost::recursive_mutex mtx;
-		static boost::thread thread( [ ] ( )
+		std::list<P_Coroutine>& getLst( )
+		{
+			static std::list<P_Coroutine> lst;
+			return lst;
+		}
+
+		void Update( );
+
+		boost::recursive_mutex& getMtx( )
+		{
+			static boost::recursive_mutex mtx;
+			static boost::thread thread( &Update );
+			return mtx;
+		}
+
+		void Update( )
 		{
 			while ( true )
 			{
-				boost::this_thread::sleep_for( boost::chrono::milliseconds( UC_COROUTINE_FIXED_UPDATE_TIME_IN_MS ) );
-				if ( lst.size( ) == 0 )continue;
-				boost::lock_guard<boost::recursive_mutex> __lock( mtx );
 				try
 				{
-					auto iter = lst.begin( );
-					while ( iter != lst.end() )
+					boost::this_thread::no_interruption_point::sleep_for( boost::chrono::milliseconds( UC_COROUTINE_FIXED_UPDATE_TIME_IN_MS ) );
+					if ( getLst( ).size( ) == 0 )continue;
+					boost::lock_guard<boost::recursive_mutex> __lock( getMtx( ) );
+					BOOST_SCOPE_EXIT( void )
 					{
-						auto coroutine = *iter;
-						bool update = false;
-						if ( !coroutine )
+						try
 						{
-							lst.erase( iter++ );
-							continue;
+							auto& lst = getLst( );
+							lst.erase( std::remove_if( lst.begin( ) , lst.end( ) , [ ] ( P_Coroutine& coro )
+							{
+								if ( !coro )return true;
+								if ( coro->__finished ) coro->__onStop->Eval( );
+								return coro->__finished;
+							} ) , lst.end( ) );
 						}
-						if ( coroutine->__paused )continue;
+						catch ( ... ) { }
+					};
+					for ( auto& coroutine : getLst( ) )
+					{
+						bool update = false;
+						if ( !coroutine || coroutine->__paused || coroutine->__finished )continue;
 						if ( coroutine->__instruction )
 						{
 							if ( coroutine->__instruction->Finished( ) )
@@ -42,24 +62,35 @@ namespace UC
 						else update = true;
 						if ( update )
 						{
-							auto& fiber = coroutine->__fiber;
-							if ( fiber( coroutine ) )
+							if ( coroutine->__finished )continue;
+							try
 							{
-								auto yieldCommand = fiber.Get( );
+								auto& fiber = coroutine->__fiber;
+								if ( fiber( ) )
+								{
+									auto yieldCommand = fiber.Get( );
 
-								if ( !yieldCommand ) continue;
+									if ( !yieldCommand ) continue;
 
-								coroutine->__instruction = yieldCommand;
+									coroutine->__instruction = yieldCommand;
+								}
+								else
+								{
+									coroutine->__finished = true;
+									continue;
+								}
 							}
-							else
+							catch ( ... )
 							{
 								coroutine->__finished = true;
-								lst.erase( iter++ );
-								continue;
+								throw;
 							}
 						}
-						++iter;
 					}
+				}
+				catch ( const UC::Exception& ex )
+				{
+					std::cerr << "Exception of type \"" << typeid( ex ).name( ) << "\" in coroutine on separate thread with message: " << std::endl << ex.what( ) << std::endl << "at stack position:" << std::endl << ex.GetStackTrace( );
 				}
 				catch ( const std::exception& ex )
 				{
@@ -70,22 +101,15 @@ namespace UC
 					std::cerr << "Exception of unknown type in coroutine on separate thread." << std::endl;
 				}
 			}
-		} );
-
+		}
 		P_Coroutine Start( GeneratorForCoroutine && fiber )
 		{
-			boost::lock_guard<boost::recursive_mutex> __lock( mtx );
-			// if function has exited or is invalid, fiber will be null and we no-op
+			boost::lock_guard<boost::recursive_mutex> __lock( getMtx( ) );
 			if ( fiber == nullptr ) return nullptr;
-			// create coroutine node and run until we reach first yield
 			auto coroutine = Coroutine::Make( std::move( fiber ) );
-			lst.push_back( coroutine );
+			getLst( ).push_back( coroutine );
 			return coroutine;
 		}
-		void Stop( P_Coroutine coroutine )
-		{
-			boost::lock_guard<boost::recursive_mutex> __lock( mtx );
-			lst.remove( coroutine );
-		}
+		void Stop( P_Coroutine coroutine ) { if ( coroutine ) coroutine->__finished = true; }
 	}
 }

@@ -2,7 +2,6 @@
 #ifndef __UC__GENERATOR_HPP__
 #define __UC__GENERATOR_HPP__
 #include "stdafx.h"
-#include <boost\type_traits\remove_cv_ref.hpp>
 #include "common_mcr.hpp"
 #include "Interface.hpp"
 #include "Object.hpp"
@@ -221,13 +220,11 @@ namespace UC
 	}));\
 };
 
-#define UCBDGenLambda(retType, params, invocParams, ...) -> ::UC::Generator<BOOST_PP_REMOVE_PARENS(retType),__UC_TUPLE_FOR_EACH_I(__UC_genInvocTypeParams,invocParams)>\
-(__UC_TUPLE_FOR_EACH_I(__UC_genParams,params)) UCBDGenBeg(retType, params, invocParams, __VA_ARGS__)
+#define UCBDGenLambda(retType, params, invocParams, ...) (__UC_TUPLE_FOR_EACH_I(__UC_genParams,params)) -> ::UC::Generator<BOOST_PP_REMOVE_PARENS(retType),__UC_TUPLE_FOR_EACH_I(__UC_genInvocTypeParams,invocParams)> UCBDGenBeg(retType, params, invocParams, __VA_ARGS__)
 
 #define UCBDGen(retType, name, params, invocParams, ...) ::UC::Generator<BOOST_PP_REMOVE_PARENS(retType),__UC_TUPLE_FOR_EACH_I(__UC_genInvocTypeParams,invocParams)> name (__UC_TUPLE_FOR_EACH_I(__UC_genParams,params)) UCBDGenBeg(retType, params, invocParams, __VA_ARGS__)
 
-#define UCGenLambda(retType, params, ...) -> ::UC::Generator<BOOST_PP_REMOVE_PARENS(retType)> \
-(__UC_TUPLE_FOR_EACH_I(__UC_genParams,params)) UCGenBeg(retType, params, __VA_ARGS__)
+#define UCGenLambda(retType, params, ...) (__UC_TUPLE_FOR_EACH_I(__UC_genParams,params)) -> ::UC::Generator<BOOST_PP_REMOVE_PARENS(retType)> UCGenBeg(retType, params, __VA_ARGS__)
 
 #define UCGen(retType, name, params, ...) ::UC::Generator<BOOST_PP_REMOVE_PARENS(retType)> name (__UC_TUPLE_FOR_EACH_I(__UC_genParams,params)) UCGenBeg(retType, params, __VA_ARGS__)
 

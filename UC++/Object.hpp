@@ -110,12 +110,14 @@ namespace UC
 	class Exception : public std::exception
 	{
 		using base = std::exception;
-		const NatString str;
+		NatString str;
+		boost::stacktrace::stacktrace stackTrace;
 	public:
-		Exception( NatString&& str ) noexcept : base( ) , str( str ) { }
+		Exception( NatString&& str ) noexcept : base( ) , str( str ) , stackTrace( boost::stacktrace::stacktrace( ) ) { }
 		Exception( const NatString& str ) noexcept : base( ) , str( str ) { }
 		virtual char const* what( ) const override { return str.c_str( ); }
 		const NatString& Message( ) const { return str; }
+		const boost::stacktrace::stacktrace& GetStackTrace( ) const { return stackTrace; }
 	};
 
 	/// <summary>
@@ -241,7 +243,7 @@ namespace UC
 		template<typename T>
 		friend class WeakPtr;
 		template<typename T>
-		friend class IEnableGCPtrFromMe;
+		friend class EnableGCPtrFromMe;
 	};
 
 	template<typename T>
@@ -278,10 +280,10 @@ namespace UC
 		forceinline WeakPtr( const GCPtr<T>& ptr ) noexcept :wptr( ptr.ptr ) { }
 
 		forceinline WeakPtr<T>& Reset( ) noexcept { wptr.reset( ); return *this; }
-		forceinline bool Expired( ) { return wptr.expired( ); }
+		forceinline bool Expired( ) const { return wptr.expired( ); }
 
-		forceinline GCPtr<T> Lock( ) { return GCPtr<T>( wptr.lock( ) ); }
-		GCPtr<T> LockIfNotThrow( )
+		forceinline GCPtr<T> Lock( ) const { return GCPtr<T>( wptr.lock( ) ); }
+		GCPtr<T> LockIfNotThrow( ) const
 		{
 			auto lockedVal = wptr.lock( );
 			if ( lockedVal == nullptr ) throw BadWeakPtrException( "Trying to dereference an expired WeakPtr." );
@@ -289,6 +291,7 @@ namespace UC
 		}
 		forceinline GCPtr<T> operator*( ) { return LockIfNotThrow( ); }
 
+		forceinline explicit operator bool( ) const noexcept { return !wptr.expired(); }
 		forceinline WeakPtr<T>& operator=( const GCPtr<T>& ptr ) { wptr = ptr.ptr; return *this; }
 		forceinline WeakPtr<T>& operator=( GCPtr<T>&& ptr ) { wptr = ptr.ptr; return *this; }
 
@@ -296,7 +299,7 @@ namespace UC
 		forceinline bool operator==( nullptr_t )const noexcept { return wptr == nullptr; }
 
 		template<typename T>
-		friend class IEnableGCPtrFromMe;
+		friend class EnableGCPtrFromMe;
 	};
 
 	template<typename T> forceinline bool operator!=( nullptr_t , const WeakPtr<T>& val )
@@ -305,21 +308,52 @@ namespace UC
 	template<typename T> forceinline bool operator==( nullptr_t , const WeakPtr<T>& val )
 	{ return val == nullptr; }
 
-	template<typename T> class EnableGCPtrFromMe : public std::enable_shared_from_this<T>
+	struct virtual_enable_shared_from_this_base :
+		std::enable_shared_from_this<virtual_enable_shared_from_this_base>
 	{
-		using base_t = std::enable_shared_from_this<T>;
+		virtual ~virtual_enable_shared_from_this_base( ) { }
+	};
+	template<typename T>
+	struct virtual_enable_shared_from_this : virtual virtual_enable_shared_from_this_base
+	{
+		std::shared_ptr<T> shared_from_this( )
+		{
+			return std::dynamic_pointer_cast< T >(
+				virtual_enable_shared_from_this_base::shared_from_this( ) );
+		}
+
+		std::shared_ptr<const T> shared_from_this( ) const
+		{
+			return std::dynamic_pointer_cast< const T >(
+				virtual_enable_shared_from_this_base::shared_from_this( ) );
+		}
+	};
+
+	template<typename T> class EnableGCPtrFromMe : public virtual_enable_shared_from_this<T>
+	{
+		using base_t = virtual_enable_shared_from_this<T>;
 		base_t& base( ) { return *this; }
 		const base_t& base( ) const { return *this; }
 	public:
-		forceinline GCPtr<T> GCFromMe( ) { return GCPtr<T>( base( ).shared_from_this( ) ); }
+		forceinline GCPtr<T> GCFromMe( )
+		{
+			return GCPtr<T>( base( ).shared_from_this( ) );
+		}
 
 		forceinline GCPtr<const T> GCFromMe( ) const
 		{ return GCPtr<const T>( base( ).shared_from_this( ) ); }
 
-		forceinline WeakPtr<T> WeakFromMe( )noexcept { return WeakPtr<T>( base( ).weak_from_this( ) ); }
+		forceinline WeakPtr<T> WeakFromMe( )noexcept
+		{
+			try { return WeakPtr<T>( base( ).shared_from_this( ) ); }
+			catch ( const std::bad_weak_ptr& ) { return  WeakPtr<T>( ); }
+		}
 
 		forceinline WeakPtr<const T> WeakFromMe( ) const noexcept
-		{ return WeakPtr<const T>( base( ).weak_from_this( ) ); }
+		{
+			try { return WeakPtr<const T>( base( ).shared_from_this( ) ); }
+			catch ( const std::bad_weak_ptr& ) { return  WeakPtr<const T>( ); }
+		}
 	};
 #pragma endregion
 
@@ -1395,5 +1429,14 @@ namespace std
 
 	template<typename T> inline ostream& operator<<( ostream& o , const UC::GCPtr<T>& p )
 	{ return o << p->ToString( ); }
+
+	static inline ostream& operator<<( ostream& o , nullptr_t )
+	{ return o << "nullptr"; }
+
+	static inline ostream& operator<<( ostream& o , const std::exception& ex )
+	{ return o << ex.what( ); }
+
+	static inline ostream& operator<<( ostream& o , const UC::Exception& ex )
+	{ return o << typeid( ex ).name( ) << ":" << ex.Message( ) << endl << "at stack position:" << endl << ex.GetStackTrace( ); }
 }
 #endif // !__UC__OBJECT__HPP__

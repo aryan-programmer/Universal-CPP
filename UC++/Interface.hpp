@@ -266,7 +266,7 @@ public:\
 		return nm;\
 	}\
 	static const ::UC::NatString& SGetTypeName( ){\
-		static auto nm = ::UC::ConcatNatStrings(::UC::NatString( str ), __UCExpandTypesToTypenames(TypeParams));\
+		static auto nm = ::UC::ConcatNatStrings(::UC::NatString( str ),"<", __UCExpandTypesToTypenames(TypeParams),">");\
 		return nm;\
 	}\
 	/*Inherited via ::UC::Object*/\
@@ -309,7 +309,7 @@ public:\
 		return nm;\
 	}\
 	static const ::UC::NatString& SGetTypeName( ){\
-		static auto nm = ::UC::ConcatNatStrings(::UC::NatString( str ), __UCExpandTypesToTypenames(TypeParams), ::UC::SGetTypeName<PackParam>()...);\
+		static auto nm = ::UC::ConcatNatStrings(::UC::NatString( str ), "<", __UCExpandTypesToTypenames(TypeParams), ::UC::SGetTypeName<PackParam>()..., ">");\
 		return nm;\
 	}\
 	/*Inherited via ::UC::Object*/\
@@ -350,7 +350,7 @@ public:\
 		return nm;\
 	}\
 	static const ::UC::NatString& SGetTypeName( ){\
-		static auto nm = ::UC::ConcatNatStrings(::UC::NatString( str ), ::UC::SGetTypeName<PackParam>()...);\
+		static auto nm = ::UC::ConcatNatStrings(::UC::NatString( str ), "<", ::UC::SGetTypeName<PackParam>()..., ">");\
 		return nm;\
 	}\
 	/*Inherited via ::UC::Object*/\
@@ -380,6 +380,7 @@ template<typename... PackParam> struct Name __VA_ARGS__ :  __UCExpand##Inheritan
 template<typename... PackParamName> using P_##Name = ::UC::GCP<Name<PackParamName...>>;\
 template<typename... PackParamName> using W_##Name = ::UC::WeakPtr<Name<PackParamName...>>;\
 
+#define UCEndHiddenInterface };
 
 #define UCC(var, fname, ...) var->Call(fname, __VA_ARGS__)
 
