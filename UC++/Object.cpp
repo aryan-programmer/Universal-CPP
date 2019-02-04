@@ -3,10 +3,15 @@
 
 namespace UC
 {
+	std::unordered_map<NatString , Object::CtorT>& getClassCtors( )
+	{
+		static std::unordered_map<NatString , Object::CtorT> classCtors {};
+		return classCtors;
+	}
 	Object::~Object( ) = default;
 	NatString Object::ToString( ) const { return GetTypeName( ); }
 	int64_t Object::GetHashCode( ) const { return Hash( ME ); }
-	P_Any Object::CreateInstance( const NatString& className , const NatOVector& args )
+	P<Object> Object::CreateInstance( const NatString& className , const NatOVector& args )
 	{
 		decltype( auto ) map = getClassCtors( );
 		auto findName = className.substr( 0 , className.find( "<" ) );
@@ -21,16 +26,11 @@ namespace UC
 				" parameters." ) );
 	}
 	Object::Object( ) = default;
-	void Object::addConstructor( const NatString& className , P_Any( *ctor )( const NatOVector& args ) )
+	void Object::addConstructor( const NatString& className , CtorT ctor )
 	{
-		if ( getClassCtors( ).emplace( className , ctor ).second == false )
+		decltype( auto ) map = getClassCtors( );
+		if ( map.emplace( className , ctor ).second == false )
 			throw RepeatingClassNameException( std::move( className ) );
-	}
-
-	std::unordered_map<NatString , P_Any( *)( const NatOVector& args )>& Object::getClassCtors( )
-	{
-		static std::unordered_map<NatString , P_Any( *)( const NatOVector& args )> classCtors {};
-		return classCtors;
 	}
 
 	UCRegister( Int16 );
@@ -71,11 +71,11 @@ namespace UC
 	UCMethod( String::OpAdd , ( _1 , _2 , _3 , _4 , _5 , _6 , _7 , _8 , _9 ) ) { return Concat( ME , UCCast( String , _1 ) , UCCast( String , _2 ) , UCCast( String , _3 ) , UCCast( String , _4 ) , UCCast( String , _5 ) , UCCast( String , _6 ) , UCCast( String , _7 ) , UCCast( String , _8 ) , UCCast( String , _9 ) ); }
 	UCMethod( String::OpAdd , ( _1 , _2 , _3 , _4 , _5 , _6 , _7 , _8 , _9 , _10 ) ) { return Concat( ME , UCCast( String , _1 ) , UCCast( String , _2 ) , UCCast( String , _3 ) , UCCast( String , _4 ) , UCCast( String , _5 ) , UCCast( String , _6 ) , UCCast( String , _7 ) , UCCast( String , _8 ) , UCCast( String , _9 ) , UCCast( String , _10 ) ); }
 
-	UCRegisterTemplate( Deque , <P_Any> );
-	UCRegisterTemplate( Vector , <P_Any> );
-	UCRegisterTemplate( BstDeque , <P_Any> );
-	UCRegisterTemplate( BstVector , <P_Any> );
+	UCRegisterTemplate( Deque , <P<Object>> );
+	UCRegisterTemplate( Vector , <P<Object>> );
+	UCRegisterTemplate( BstDeque , <P<Object>> );
+	UCRegisterTemplate( BstVector , <P<Object>> );
 
-	UCRegisterTemplate( UnorderedMap , <P_Any , P_Any> );
-	UCRegisterTemplate( BstUnorderedMap , <P_Any , P_Any> );
+	UCRegisterTemplate( UnorderedMap , <P<Object> , P<Object>> );
+	UCRegisterTemplate( BstUnorderedMap , <P<Object> , P<Object>> );
 }

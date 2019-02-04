@@ -5,11 +5,11 @@ namespace UC
 {
 	namespace Coro
 	{
-		void WhenCalledStop::OnUpdate( P_Coroutine coro ) { Stop( coro ); };
+		void WhenCalledStop::OnUpdate( P<Coroutine> coro ) { Stop( coro ); };
 
-		std::list<P_Coroutine>& getLst( )
+		std::list<P<Coroutine>>& getLst( )
 		{
-			static std::list<P_Coroutine> lst;
+			static std::list<P<Coroutine>> lst;
 			return lst;
 		}
 
@@ -28,7 +28,7 @@ namespace UC
 			{
 				try
 				{
-					boost::this_thread::no_interruption_point::sleep_for( boost::chrono::milliseconds( UC_COROUTINE_FIXED_UPDATE_TIME_IN_MS ) );
+					boost::this_thread::sleep_for( boost::chrono::milliseconds( UC_COROUTINE_FIXED_UPDATE_TIME_IN_MS ) );
 					if ( getLst( ).size( ) == 0 )continue;
 					boost::lock_guard<boost::recursive_mutex> __lock( getMtx( ) );
 					BOOST_SCOPE_EXIT( void )
@@ -36,7 +36,7 @@ namespace UC
 						try
 						{
 							auto& lst = getLst( );
-							lst.erase( std::remove_if( lst.begin( ) , lst.end( ) , [ ] ( P_Coroutine& coro )
+							lst.erase( std::remove_if( lst.begin( ) , lst.end( ) , [ ] ( P<Coroutine>& coro )
 							{
 								if ( !coro )return true;
 								if ( coro->__finished ) coro->__onStop->Eval( );
@@ -102,7 +102,7 @@ namespace UC
 				}
 			}
 		}
-		P_Coroutine Start( GeneratorForCoroutine && fiber )
+		P<Coroutine> Start( GeneratorForCoroutine && fiber )
 		{
 			boost::lock_guard<boost::recursive_mutex> __lock( getMtx( ) );
 			if ( fiber == nullptr ) return nullptr;
@@ -110,6 +110,6 @@ namespace UC
 			getLst( ).push_back( coroutine );
 			return coroutine;
 		}
-		void Stop( P_Coroutine coroutine ) { if ( coroutine ) coroutine->__finished = true; }
+		void Stop( P<Coroutine> coroutine ) { if ( coroutine ) coroutine->__finished = true; }
 	}
 }

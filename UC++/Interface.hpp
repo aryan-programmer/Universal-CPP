@@ -10,7 +10,7 @@ BOOST_PP_IIF(BOOST_PP_EQUAL(BOOST_PP_TUPLE_SIZE(tup), 2),\
 __UCGetGetMethodParams,\
 __UCNothing)(tup)
 
-#define __UCMethodParamsHelper(r, data, i, elem) BOOST_PP_COMMA_IF(i) ::UC::P_Any elem
+#define __UCMethodParamsHelper(r, data, i, elem) BOOST_PP_COMMA_IF(i) ::UC::P<Object> elem
 #define __UCMethodParams(list) BOOST_PP_LIST_FOR_EACH_I(__UCMethodParamsHelper,_,list)
 #define __UCWriteEachMethod(r, data, i, elem) virtual __UCMethod(elem);
 #define __UCWriteMethodCondsMethParamsHelper(z, i, data) BOOST_PP_COMMA_IF(i) args[i]
@@ -30,13 +30,13 @@ BOOST_PP_IIF(\
 public:\
 BOOST_PP_SEQ_FOR_EACH_I(__UCWriteEachMethod, _, methSeq)\
 protected: \
-auto callImpl( const ::UC::NatString& fname, const ::UC::NatOVector& args ) -> ::UC::P_Any{\
+auto callImpl( const ::UC::NatString& fname, const ::UC::NatOVector& args ) -> ::UC::P<Object>{\
 	const auto& argsLen = args.size();\
 	BOOST_PP_SEQ_FOR_EACH_I(__UCWriteMethodConds, _, methSeq)\
 	return callImplUpChain(fname, args);\
 }\
 public:\
-virtual ::UC::P_Any Call( const ::UC::NatString& fname, const ::UC::NatOVector& args ) override{return callImpl(fname, args);}
+virtual ::UC::P<Object> Call( const ::UC::NatString& fname, const ::UC::NatOVector& args ) override{return callImpl(fname, args);}
 
 //#define UCInterface __RealInterface
 // , Name ,
@@ -59,20 +59,20 @@ virtual ::UC::P_Any Call( const ::UC::NatString& fname, const ::UC::NatOVector& 
 #define __UCWriteEachMaker(r, data, i, elem) data(__UCMethodParams(BOOST_PP_TUPLE_TO_LIST(elem)));
 #define __UCWriteMakerConds(r, data, i, params) \
 case BOOST_PP_VARIADIC_SIZE params:\
-	return ::UC::GCP<self>(new self(__UCWriteMethodCondsMethParams(BOOST_PP_TUPLE_SIZE(params))));
+	return ::UC::P<self>(new self(__UCWriteMethodCondsMethParams(BOOST_PP_TUPLE_SIZE(params))));
 #define __UCHasExplicitMakers_Decls(name, hasEmptyMaker, seq)\
 protected:\
 BOOST_PP_EXPR_IF(hasEmptyMaker, name();)\
 BOOST_PP_SEQ_FOR_EACH_I(__UCWriteEachMaker, name, seq)
 #define __UCHasExplicitMakers(name, hasEmptyMaker, seq) \
 template<typename... Args>\
-static ::UC::GCP<self> Make(Args&&... args){return ::UC::GCP<self>(new self(std::forward<Args>(args)...));}\
+static ::UC::P<self> Make(Args&&... args){return ::UC::P<self>(new self(std::forward<Args>(args)...));}\
 protected:\
 __UCHasExplicitMakers_Decls(name, hasEmptyMaker, seq)\
 public:\
-static ::UC::P_Any make_reflective( const ::UC::NatOVector& args ){\
+static ::UC::P<Object> make_reflective( const ::UC::NatOVector& args ){\
 	switch (args.size()){\
-		BOOST_PP_EXPR_IF(hasEmptyMaker, case 0:return ::UC::GCP<self>(new self());)\
+		BOOST_PP_EXPR_IF(hasEmptyMaker, case 0:return ::UC::P<self>(new self());)\
 		BOOST_PP_SEQ_FOR_EACH_I(__UCWriteMakerConds, _, seq)\
 		default: throw ::UC::NoSuchConstructor_Exception(::UC::ConcatNatStrings(::UC::NatString("No constructor for type \""),SGetTypeName(),"\" that takes in ", std::to_string(args.size()), " parameters."));\
 	}\
@@ -87,34 +87,34 @@ forceinline pself GetInst(){return Make();}\
 forceinline pself GetInstance(){return Make();}\
 forceinline pself Inst(){return Make();}\
 forceinline pself Instance(){return Make();}\
-static ::UC::P_Any make_reflective(const ::UC::NatOVector& args){\
+static ::UC::P<Object> make_reflective(const ::UC::NatOVector& args){\
 	if(args.size() == 0)return Make();\
 	throw ::UC::NoSuchConstructor_Exception(::UC::ConcatNatStrings(::UC::NatString("Type \""),SGetTypeName(),"\" is a singleton and hence the constructor can take only 1 parameter."));\
 }
-#   define UC_IsAbstract static ::UC::P_Any make_reflective(const ::UC::NatOVector& args){\
+#   define UC_IsAbstract static ::UC::P<Object> make_reflective(const ::UC::NatOVector& args){\
 	throw ::UC::NoSuchConstructor_Exception(SGetTypeName() + " is an abstract class that can't be instantiated.");\
 }
-#   define UC_IsAbstractAndHasCtors(name, hasEmptyCtor,...) protected: __UCHasExplicitMakers_Decls(name, hasEmptyCtor, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) public: static ::UC::P_Any make_reflective(const ::UC::NatOVector& args){\
+#   define UC_IsAbstractAndHasCtors(name, hasEmptyCtor,...) protected: __UCHasExplicitMakers_Decls(name, hasEmptyCtor, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) public: static ::UC::P<Object> make_reflective(const ::UC::NatOVector& args){\
 	throw ::UC::NoSuchConstructor_Exception(SGetTypeName() + " is an abstract class that can't be instantiated.");\
 }
-#   define UC_OnlyHasNativeCtors static ::UC::P_Any make_reflective(const ::UC::NatOVector& args){\
+#   define UC_OnlyHasNativeCtors static ::UC::P<Object> make_reflective(const ::UC::NatOVector& args){\
 	throw ::UC::NoSuchConstructor_Exception(SGetTypeName() + " can't be instantiated by reflection.");\
 }\
 template<typename... Args>\
-static ::UC::GCP<self> Make(Args&&... args){return ::UC::GCP<self>(new self(std::forward<Args>(args)...));}\
+static ::UC::P<self> Make(Args&&... args){return ::UC::P<self>(new self(std::forward<Args>(args)...));}\
 	// or
 #   define UC_OnlyHasEmptyCtor \
-static ::UC::GCP<self> Make(){return ::UC::GCP<self>(new self());}\
-static ::UC::P_Any make_reflective(const ::UC::NatOVector& args){\
-	if(args.size() == 0)return ::UC::P_Any(new self());\
+static ::UC::P<self> Make(){return ::UC::P<self>(new self());}\
+static ::UC::P<Object> make_reflective(const ::UC::NatOVector& args){\
+	if(args.size() == 0)return ::UC::P<Object>(new self());\
 	throw ::UC::NoSuchConstructor_Exception(::UC::ConcatNatStrings(::UC::NatString("No constructor for type \""),SGetTypeName(),"\" that takes in ", std::to_string(args.size()), " parameters."));\
 }
 	// or
 #   define UC_HasNativeCtorsAndEmptyCtor \
 template<typename... Args>\
-static ::UC::GCP<self> Make(Args&&... args){return ::UC::GCP<self>(new self(std::forward<Args>(args)...));}\
-static ::UC::P_Any make_reflective(const ::UC::NatOVector& args){\
-	if(args.size() == 0)return ::UC::P_Any(new self());\
+static ::UC::P<self> Make(Args&&... args){return ::UC::P<self>(new self(std::forward<Args>(args)...));}\
+static ::UC::P<Object> make_reflective(const ::UC::NatOVector& args){\
+	if(args.size() == 0)return ::UC::P<Object>(new self());\
 	throw ::UC::NoSuchConstructor_Exception(::UC::ConcatNatStrings(::UC::NatString("No constructor for type \""),SGetTypeName(),"\" that takes in ", std::to_string(args.size()), " parameters."));\
 }
 	// or
@@ -124,15 +124,15 @@ static ::UC::P_Any make_reflective(const ::UC::NatOVector& args){\
 // )
 
 // ,
-//#define Method(name, params) ::UC::P_Any name(__UCMethodParams##params)
+//#define Method(name, params) ::UC::P<Object> name(__UCMethodParams##params)
 #define UC_HasMethods(...) __UCWriteMethods(BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
 #define UC_HasNoMethods \
 protected: \
-forceinline auto callImpl( const ::UC::NatString& fname, const ::UC::NatOVector& args ) -> ::UC::P_Any{\
+forceinline auto callImpl( const ::UC::NatString& fname, const ::UC::NatOVector& args ) -> ::UC::P<Object>{\
 	return callImplUpChain(fname, args);\
 }\
 public:\
-virtual ::UC::P_Any Call( const ::UC::NatString& fname, const ::UC::NatOVector& args ) override{return callImpl(fname, args);}
+virtual ::UC::P<Object> Call( const ::UC::NatString& fname, const ::UC::NatOVector& args ) override{return callImpl(fname, args);}
 // ,
 
 #define __UCExpandInheritanceHelper(r, data, i, elem) using BOOST_PP_CAT(base, i) = elem;
@@ -152,7 +152,7 @@ __UCDefine_callUpChainWithInheritsHelperH(BOOST_PP_CAT(base, i), BOOST_PP_CAT(re
 
 #define __UCDefineClassRegistererAndTypename(str, Inheritance) \
 protected:\
-	auto callImplUpChain(const ::UC::NatString& fname, const ::UC::NatOVector& args) -> ::UC::P_Any{__UCDefine_callUpChainWith##Inheritance; throw ::UC::NoSuchFunction_Exception(::UC::ConcatNatStrings(::UC::NatString("No function for type \"" str "\" with name \""), fname, "\" that takes in ", std::to_string(args.size()), " parameters."));}\
+	auto callImplUpChain(const ::UC::NatString& fname, const ::UC::NatOVector& args) -> ::UC::P<Object>{__UCDefine_callUpChainWith##Inheritance; throw ::UC::NoSuchFunction_Exception(::UC::ConcatNatStrings(::UC::NatString("No function for type \"" str "\" with name \""), fname, "\" that takes in ", std::to_string(args.size()), " parameters."));}\
 private:\
 	struct __classRegisterer{\
 		__classRegisterer(){\
@@ -191,7 +191,7 @@ struct Name __VA_ARGS__ : __UCExpand##Inheritance __UCExpand##NativeInheritance,
 	__UCExpandInheritanceAsUsings##Inheritance\
 	__UCExpandNativeInheritanceAsUsings##NativeInheritance\
 	using self = Name;\
-	using pself = ::UC::GCP<self>;\
+	using pself = ::UC::P<self>;\
 	using wself = ::UC::WeakPtr<self>;\
 	using EGCPFM = ::UC::EnableGCPtrFromMe<Name>;\
 	__UCDefineClassRegistererAndTypename(\
@@ -200,9 +200,7 @@ struct Name __VA_ARGS__ : __UCExpand##Inheritance __UCExpand##NativeInheritance,
 		/*else*/\
 			BOOST_PP_SEQ_ELEM(1, StrName) ), UC_InheritsUCClasses( Inheritance) )
 
-#define UCEndInterface(Name) };\
-using P_##Name = ::UC::GCP<Name>;\
-using W_##Name = ::UC::WeakPtr<Name>
+#define UCEndInterface };
 
 #define UCException(Name) struct Name: public ::UC::Exception{\
 using base = ::UC::Exception;\
@@ -219,8 +217,8 @@ Name(const ::UC::NatString& str)noexcept:base(str){}\
 #define ME EGCPFM::GCFromMe()
 #define WME EGCPFM::WeakFromMe()
 
-#define __UCMethod(tuple) auto BOOST_PP_TUPLE_ELEM(0, tuple) (__UCGetGetMethodParamsIfExists(tuple)) -> ::UC::P_Any
-#define __UCMTPMethod(tuple) BOOST_PP_TUPLE_ELEM(0, tuple) (__UCGetGetMethodParamsIfExists(tuple)) -> ::UC::P_Any
+#define __UCMethod(tuple) auto BOOST_PP_TUPLE_ELEM(0, tuple) (__UCGetGetMethodParamsIfExists(tuple)) -> ::UC::P<Object>
+#define __UCMTPMethod(tuple) BOOST_PP_TUPLE_ELEM(0, tuple) (__UCGetGetMethodParamsIfExists(tuple)) -> ::UC::P<Object>
 
 #define UCMethod(...) __UCMethod((__VA_ARGS__))
 #define __UCEXP(...) __VA_ARGS__
@@ -259,7 +257,7 @@ Name(const ::UC::NatString& str)noexcept:base(str){}\
 
 #define __UCDefineTemplateTypename(str, Inheritance, TypeParams) \
 protected:\
-	auto callImplUpChain(const ::UC::NatString& fname, const ::UC::NatOVector& args) -> ::UC::P_Any{__UCDefine_callUpChainWith##Inheritance; throw ::UC::NoSuchFunction_Exception(::UC::ConcatNatStrings(::UC::NatString("No function for type \""), SGetTypeName(), "\" with name \"", fname, "\" that takes in ", std::to_string(args.size()), " parameters."));}\
+	auto callImplUpChain(const ::UC::NatString& fname, const ::UC::NatOVector& args) -> ::UC::P<Object>{__UCDefine_callUpChainWith##Inheritance; throw ::UC::NoSuchFunction_Exception(::UC::ConcatNatStrings(::UC::NatString("No function for type \""), SGetTypeName(), "\" with name \"", fname, "\" that takes in ", std::to_string(args.size()), " parameters."));}\
 public:\
 	static const ::UC::NatString& SGetSimpleTypeName( ){\
 		static auto nm = ::UC::NatString( str );\
@@ -286,7 +284,7 @@ __UCExpandAsTemplate(TypeParams) struct Name : __UCExpand##Inheritance __UCExpan
 	__UCExpandInheritanceAsUsings##Inheritance\
 	__UCExpandNativeInheritanceAsUsings##NativeInheritance\
 	using self = Name<__UCExpandAsCondensedParameters TypeParams>;\
-	using pself = ::UC::GCP<self>;\
+	using pself = ::UC::P<self>;\
 	using wself = ::UC::WeakPtr<self>;\
 	using EGCPFM = ::UC::EnableGCPtrFromMe<self>;\
 	__UCDefineTemplateTypename(\
@@ -295,14 +293,9 @@ __UCExpandAsTemplate(TypeParams) struct Name : __UCExpand##Inheritance __UCExpan
 		/*else*/\
 			BOOST_PP_SEQ_ELEM(1, StrName) ), UC_InheritsUCClasses( Inheritance ), TypeParams )
 
-#define UCEndTemplateInterface(Name, TypeParams) };\
-__UCExpandAsTemplate(TypeParams) using P_##Name = ::UC::GCP<Name<__UCExpandAsCondensedParameters TypeParams>>;\
-__UCExpandAsTemplate(TypeParams) using W_##Name = ::UC::WeakPtr<Name<__UCExpandAsCondensedParameters TypeParams>>;\
-
-
 #define __UCDefineTemplateTypenameWithPack(str, Inheritance, TypeParams, PackParam) \
 protected:\
-	auto callImplUpChain(const ::UC::NatString& fname, const ::UC::NatOVector& args) -> ::UC::P_Any{__UCDefine_callUpChainWith##Inheritance; throw ::UC::NoSuchFunction_Exception(::UC::ConcatNatStrings(::UC::NatString("No function for type \""), SGetTypeName(), "\" with name \"", fname, "\" that takes in ", std::to_string(args.size()), " parameters."));}\
+	auto callImplUpChain(const ::UC::NatString& fname, const ::UC::NatOVector& args) -> ::UC::P<Object>{__UCDefine_callUpChainWith##Inheritance; throw ::UC::NoSuchFunction_Exception(::UC::ConcatNatStrings(::UC::NatString("No function for type \""), SGetTypeName(), "\" with name \"", fname, "\" that takes in ", std::to_string(args.size()), " parameters."));}\
 public:\
 	static const ::UC::NatString& SGetSimpleTypeName( ){\
 		static auto nm = ::UC::NatString( str );\
@@ -328,7 +321,7 @@ __UCExpandAsTemplateParamPack(TypeParams, PackParamName) struct Name __VA_ARGS__
 	__UCExpandInheritanceAsUsings##Inheritance\
 	__UCExpandNativeInheritanceAsUsings##NativeInheritance\
 	using self = Name<__UCExpandAsCondensedParameters TypeParams, PackParamName...>;\
-	using pself = ::UC::GCP<self>;\
+	using pself = ::UC::P<self>;\
 	using wself = ::UC::WeakPtr<self>;\
 	using EGCPFM = ::UC::EnableGCPtrFromMe<self>;\
 	__UCDefineTemplateTypenameWithPack(\
@@ -337,13 +330,9 @@ __UCExpandAsTemplateParamPack(TypeParams, PackParamName) struct Name __VA_ARGS__
 		/*else*/\
 			BOOST_PP_SEQ_ELEM(1, StrName) ), UC_InheritsUCClasses( Inheritance ), TypeParams, PackParamName )
 
-#define UCEndTemplateInterfaceWithPack(Name, TypeParams, PackParamName) };\
-__UCExpandAsTemplateParamPack(TypeParams, PackParamName) using P_##Name = ::UC::GCP<Name<__UCExpandAsCondensedParameters TypeParams, PackParamName...>>;\
-__UCExpandAsTemplateParamPack(TypeParams, PackParamName) using W_##Name = ::UC::WeakPtr<Name<__UCExpandAsCondensedParameters TypeParams, PackParamName...>>;\
-
 #define __UCDefineTemplateTypenameWithOnlyPack(str, Inheritance, PackParam) \
 protected:\
-	auto callImplUpChain(const ::UC::NatString& fname, const ::UC::NatOVector& args) -> ::UC::P_Any{__UCDefine_callUpChainWith##Inheritance; throw ::UC::NoSuchFunction_Exception(::UC::ConcatNatStrings(::UC::NatString("No function for type \""), SGetTypeName(), "\" with name \"", fname, "\" that takes in ", std::to_string(args.size()), " parameters."));}\
+	auto callImplUpChain(const ::UC::NatString& fname, const ::UC::NatOVector& args) -> ::UC::P<Object>{__UCDefine_callUpChainWith##Inheritance; throw ::UC::NoSuchFunction_Exception(::UC::ConcatNatStrings(::UC::NatString("No function for type \""), SGetTypeName(), "\" with name \"", fname, "\" that takes in ", std::to_string(args.size()), " parameters."));}\
 public:\
 	static const ::UC::NatString& SGetSimpleTypeName( ){\
 		static auto nm = ::UC::NatString( str );\
@@ -367,7 +356,7 @@ template<typename... PackParam> struct Name __VA_ARGS__ :  __UCExpand##Inheritan
 	__UCExpandInheritanceAsUsings##Inheritance\
 	__UCExpandNativeInheritanceAsUsings##NativeInheritance\
 	using self = Name<PackParam...>;\
-	using pself = ::UC::GCP<self>;\
+	using pself = ::UC::P<self>;\
 	using wself = ::UC::WeakPtr<self>;\
 	using EGCPFM = ::UC::EnableGCPtrFromMe<self>;\
 	__UCDefineTemplateTypenameWithOnlyPack(\
@@ -375,12 +364,6 @@ template<typename... PackParam> struct Name __VA_ARGS__ :  __UCExpand##Inheritan
 			__ToString(Name), \
 		/*else*/\
 			BOOST_PP_SEQ_ELEM(1, StrName) ), UC_InheritsUCClasses( Inheritance ), PackParam )
-
-#define UCEndTemplateInterfaceWithOnlyPack(Name, PackParamName) };\
-template<typename... PackParamName> using P_##Name = ::UC::GCP<Name<PackParamName...>>;\
-template<typename... PackParamName> using W_##Name = ::UC::WeakPtr<Name<PackParamName...>>;\
-
-#define UCEndHiddenInterface };
 
 #define UCC(var, fname, ...) var->Call(fname, __VA_ARGS__)
 

@@ -241,7 +241,7 @@ namespace UC
 		forceinline bool RefNotEq( const GCPtr<T2>& ptr2 )const noexcept { return ptr != ptr2.ptr; }
 
 		template<typename T>
-		friend class WeakPtr;
+		friend struct WeakPtr;
 		template<typename T>
 		friend class EnableGCPtrFromMe;
 	};
@@ -268,10 +268,10 @@ namespace UC
 	/// WeakPtr is a smart pointer that holds a non-owning ("weak") reference to an object that is managed by GCPtr. 
 	/// It must be converted to GCPtr (by Lock, LockIfNotThrow/operator *) in order to access the referenced object.
 	/// </summary>
-	template<typename T> class WeakPtr
+	template<typename T> struct WeakPtr
 	{
 		std::weak_ptr<T> wptr;
-	public:
+
 		forceinline WeakPtr( std::weak_ptr<T>&& p ) :wptr( std::move( p ) ) { }
 		forceinline WeakPtr( const std::weak_ptr<T>& p ) : wptr( p ) { }
 
@@ -291,7 +291,7 @@ namespace UC
 		}
 		forceinline GCPtr<T> operator*( ) { return LockIfNotThrow( ); }
 
-		forceinline explicit operator bool( ) const noexcept { return !wptr.expired(); }
+		forceinline explicit operator bool( ) const noexcept { return !wptr.expired( ); }
 		forceinline WeakPtr<T>& operator=( const GCPtr<T>& ptr ) { wptr = ptr.ptr; return *this; }
 		forceinline WeakPtr<T>& operator=( GCPtr<T>&& ptr ) { wptr = ptr.ptr; return *this; }
 
@@ -357,10 +357,15 @@ namespace UC
 	};
 #pragma endregion
 
-	// P_Any = Pointer to Any (U++) value
-	using P_Any = GCPtr<Object>;
-	// W_Any = Weak pointer to Any (emc2) value
-	using W_Any = WeakPtr<Object>;
+	/// <summary>
+	/// Represents a strongly referenced garbage collectible object of type T.
+	/// </summary>
+	template<typename T>using P = GCPtr<T>;
+
+	/// <summary>
+	/// Represents a weakly referenced garbage collectible object of type T.
+	/// </summary>
+	template<typename T>using W = WeakPtr<T>;
 
 	// NatVector = Native Vector
 	template<typename T>
@@ -371,7 +376,7 @@ namespace UC
 	using NatDeque = boost::container::deque<T>;
 
 	// NatOVector = Native Object Vector
-	using NatOVector = NatVector<P_Any>;
+	using NatOVector = NatVector<P<Object>>;
 
 	template<typename TKey , typename TVal>
 	using NatMap = boost::unordered_map<TKey , TVal , Hasher<TKey>>;
@@ -384,44 +389,38 @@ namespace UC
 	class Object : public EnableGCPtrFromMe<Object>
 	{
 	public:
+		using CtorT = P<Object>( *)( const NatOVector& args );
 		virtual ~Object( );
 
 		static const NatString& SGetTypeName( ) { static NatString s = "UC::Object"; return s; }
 		virtual const NatString& GetTypeName( ) const { return SGetTypeName( ); };
-		virtual P_Any Call( const NatString& fname , const NatOVector& args ) = 0;
+		virtual P<Object> Call( const NatString& fname , const NatOVector& args ) = 0;
 		virtual NatString ToString( ) const;
 		virtual int64_t GetHashCode( ) const;
 
 		Object( Object&& ) = delete;
 		Object& operator=( Object&& ) = delete;
 
-		static P_Any CreateInstance( const NatString& className , const NatOVector& args );
+		static P<Object> CreateInstance( const NatString& className , const NatOVector& args );
 
-		static void addConstructor( const NatString& className , P_Any( *ctor )( const NatOVector& args ) );
+		static void addConstructor( const NatString& className , CtorT ctor );
 
-		using EGCPFM = ::UC::EnableGCPtrFromMe<Object>;
+		using EGCPFM = EnableGCPtrFromMe<Object>;
 	protected:
 		Object( );
-		forceinline P_Any callImpl( const NatString& fname , const NatOVector& args ) { return nullptr; }
-	private:
-		static std::unordered_map<NatString , P_Any( *)( const NatOVector& args )>& getClassCtors( );
+		forceinline P<Object> callImpl( const NatString& fname , const NatOVector& args ) { return nullptr; }
 	};
-
-	/// <summary>
-	/// Represents a garbage collectible object of type T.
-	/// </summary>
-	template<typename T>using GCP = GCPtr<T>;
 
 #pragma region Casting & Checking
 	/// <summary>
-	/// Casts `value` to a value of type GCP{T}.
+	/// Casts `value` to a value of type P{T}.
 	/// </summary>
 	/// <param name="v">The value.</param>
 	/// <returns></returns>
-	template<typename T , typename T2>forceinline GCP<T> ObjCast( const GCP<T2>& v ) { return std::dynamic_pointer_cast< T >( v.ptr ); }
+	template<typename T , typename T2>forceinline P<T> ObjCast( const P<T2>& v ) { return std::dynamic_pointer_cast< T >( v.ptr ); }
 
 	template<typename T , typename T2>
-	GCP<T> ObjCastThrowing( const GCP<T2>& v , const char* msg )
+	P<T> ObjCastThrowing( const P<T2>& v , const char* msg )
 	{
 		auto ret = ObjCast<T>( v );
 		if ( ret == nullptr )throw InvalidCastException( msg );
@@ -429,7 +428,7 @@ namespace UC
 	}
 
 	template<typename T , typename T2>
-	GCP<T> ObjCastThrowingNatStr( const GCP<T2>& v , const NatString& msg )
+	P<T> ObjCastThrowingNatStr( const P<T2>& v , const NatString& msg )
 	{
 		auto ret = ObjCast<T>( v );
 		if ( ret == nullptr )throw InvalidCastException( msg );
@@ -437,14 +436,14 @@ namespace UC
 	}
 
 	template<typename T>
-	GCP<T> asNotNull( const GCP<T>& v , const char* msg )
+	P<T> asNotNull( const P<T>& v , const char* msg )
 	{
 		if ( v == nullptr )throw PreNullPointerException( msg );
 		return v;
 	}
 
 	template<typename T>
-	GCP<T> asNotNull( GCP<T>&& v , const char* msg )
+	P<T> asNotNull( P<T>&& v , const char* msg )
 	{
 		if ( v == nullptr )throw PreNullPointerException( msg );
 		return std::move( v );
@@ -466,8 +465,8 @@ public:\
 	virtual NatString ToString( ) const{return std::to_string(value);}\
 	virtual int64_t GetHashCode( ) const{return Hash(value);}\
 	forceinline name(int_t value):value{value }{}\
-	forceinline static GCP<name> Make( int_t value ) { return GCP<name>( new name(value) ); }\
-UCEndInterface(name)
+	forceinline static P<name> Make( int_t value ) { return P<name>( new name(value) ); }\
+UCEndInterface
 
 	__DEFINE_integralPlaceHolderInterfaces( Int16 , int16_t );
 	__DEFINE_integralPlaceHolderInterfaces( Int32 , int32_t );
@@ -493,8 +492,9 @@ public:\
 	virtual NatString ToString( ) const{return std::to_string(value);}\
 	virtual int64_t GetHashCode( ) const{return Hash(value);}\
 	forceinline name(underlyingType value=default_):value{value }{}\
-	forceinline static GCP<name> Make( underlyingType value ) { return GCP<name>( new name(value) ); }\
-UCEndInterface(name)
+	forceinline static P<name> Make( underlyingType value ) { return P<name>( new name(value) ); }\
+UCEndInterface
+
 
 	__DEFINE_floatingPointPlaceHolderInterfaces( Float , float , 0.0f );
 	__DEFINE_floatingPointPlaceHolderInterfaces( Double , double , 0.0 );
@@ -516,8 +516,8 @@ public:\
 	virtual NatString ToString( ) const{return std::to_string(value);}\
 	virtual int64_t GetHashCode( ) const{return Hash(value);}\
 	forceinline name(underlyingType value):value{value }{}\
-	forceinline static GCP<name> Make( underlyingType value ) { return GCP<name>( new name(value) ); }\
-UCEndInterface(name)
+	forceinline static P<name> Make( underlyingType value ) { return P<name>( new name(value) ); }\
+UCEndInterface
 
 	__DEFINE_byteTypePlaceHolderInterfaces( Byte , byte );
 	__DEFINE_byteTypePlaceHolderInterfaces( SByte , sbyte );
@@ -550,7 +550,7 @@ UCEndInterface(name)
 #pragma region Integral Conversion Functions
 #define __DEFINE_asTForLowerHelper(r, data, i, elem) if ( auto res = ObjCast<elem>( it ) ) return static_cast<data>(res->value);
 #define __DEFINE_asTForLower(curr, name, ...) \
-static curr as##name(const P_Any& it , const char* msg){\
+static curr as##name(const P<Object>& it , const char* msg){\
 	BOOST_PP_SEQ_FOR_EACH_I(__DEFINE_asTForLowerHelper, curr, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))\
 	throw InvalidCastException(msg);\
 }
@@ -599,7 +599,7 @@ static curr as##name(const P_Any& it , const char* msg){\
 		( OpAdd , ( _1 , _2 , _3 , _4 , _5 , _6 , _7 , _8 , _9 , _10 ) )
 	);
 public:
-	using pcself = GCP<const self>;
+	using pcself = P<const self>;
 	using str_t = NatString;
 	using value_type = char;
 	using reference = char &;
@@ -658,7 +658,7 @@ public:
 	static pself GetFrom( const str_t& s ) { return Make( s ); }
 	static pself GetFrom( const char* s ) { return Make( s ); }
 	static const str_t& GetNativeFrom( const pself& s ) { return s->value; }
-	static const str_t& GetNativeFrom( const GCP<const self>& s ) { return s->value; }
+	static const str_t& GetNativeFrom( const P<const self>& s ) { return s->value; }
 
 private:
 	forceinline String( const std::string_view& v ) :value( v ) { }
@@ -669,7 +669,7 @@ private:
 	template<typename Iter> String( Iter beg , Iter end ) : value( beg , end ) { }
 	forceinline String( const char* value_ ) : value( value_ ) { }
 	forceinline String( const char* value_ , size_t startIndex , size_t length ) : value( value_ , startIndex , length ) { }
-	UCEndInterface( String );
+	UCEndInterface;
 #pragma endregion
 
 
@@ -883,7 +883,7 @@ protected:\
 	template<typename TIter>\
 	forceinline name( const TIter& beg , const TIter& end ) : coll( beg , end ) { }\
 	forceinline name( std::initializer_list<T> init ) : coll( init ) { }\
-UCEndTemplateInterface( name , ( T ) );\
+UCEndInterface;\
 \
 template<typename _T>\
 UCCtor( name<_T>::name ) :coll( ) { }\
@@ -1013,7 +1013,7 @@ public:\
 	template<typename... Args>\
 	static pself MakeI(std::initializer_list<std::pair<const TKey , TVal>> ilist){return pself(new self(ilist));}\
 \
-UCEndTemplateInterface( name , ( TKey , TVal ) );\
+UCEndInterface;\
 \
 template<typename TKey , typename TVal>\
 UC_MTPMethod( ( name<TKey , TVal> ) , OpClear ) { Clear( ); return nullptr; }\
@@ -1052,7 +1052,7 @@ UC_MTPMethod( ( name<TKey , TVal> ) , OpLen ) { return Int64::Make( Size( ) ); }
 		if constexpr ( std::is_void_v<TReturn> ) Eval( params... );
 		else return Eval( params... );
 	};
-	UCEndTemplateInterfaceWithPack( Functor , ( TReturn ) , TParams );
+	UCEndInterface;
 #pragma endregion
 
 
@@ -1070,7 +1070,7 @@ protected:
 	TFunc func;
 
 	FunctorImpl( TFunc fun ) :func( fun ) { }
-	UCEndTemplateInterfaceWithPack( FunctorImpl , ( TFunc , TReturn ) , TParams );
+	UCEndInterface;
 #pragma endregion
 
 
@@ -1079,7 +1079,7 @@ protected:
 	UC_OnlyHasNativeCtors;
 	UC_HasNoMethods;
 
-	using func_t = P_Functor<TReturn , TParams...>;
+	using func_t = P<Functor<TReturn , TParams...>>;
 
 	using col_t = std::list<func_t>;
 	typedef typename col_t::value_type value_type;
@@ -1165,206 +1165,58 @@ protected:
 protected:
 	Event( ) :lst( ) { }
 	std::list<func_t> lst;
-	UCEndTemplateInterfaceWithPack( Event , ( TReturn ) , TParams );
+	UCEndInterface;
 #pragma endregion
 
 
 #pragma region _FunctionTypeDeducerImpl
-	template<typename TFunctionToUse , typename TReturn , typename... TParams>
-	struct _FunctionTypeDeducerImpl<P_Functor<TReturn , TParams...> , TFunctionToUse>
-	{
-		using impl = FunctorImpl<TFunctionToUse , TReturn , TParams...>;
-		using base = Functor<TReturn , TParams...>;
-		using evnt = Event<TReturn , TParams...>;
-		using pevnt = P_Event<TReturn , TParams...>;
-		using pbase = P_Functor<TReturn , TParams...>;
-	};
+#define __DEFINE__FunctionTypeDeducerImpl(...)\
+template<typename TFunctionToUse , typename TReturn , typename... TParams>\
+struct _FunctionTypeDeducerImpl<__VA_ARGS__ , TFunctionToUse>\
+{\
+	using impl = FunctorImpl<TFunctionToUse , TReturn , TParams...>;\
+	using base = Functor<TReturn , TParams...>;\
+	using evnt = Event<TReturn , TParams...>;\
+	using pevnt = P<Event<TReturn , TParams...>>;\
+	using pbase = P<Functor<TReturn , TParams...>>;\
+};
+	__DEFINE__FunctionTypeDeducerImpl( W<Functor<TReturn , TParams...>> );
+	__DEFINE__FunctionTypeDeducerImpl( P<Functor<TReturn , TParams...>> );
+	__DEFINE__FunctionTypeDeducerImpl( Functor<TReturn , TParams...> );
+	__DEFINE__FunctionTypeDeducerImpl( W<Event<TReturn , TParams...>> );
+	__DEFINE__FunctionTypeDeducerImpl( P<Event<TReturn , TParams...>> );
+	__DEFINE__FunctionTypeDeducerImpl( Event<TReturn , TParams...> );
+	__DEFINE__FunctionTypeDeducerImpl( TReturn( TParams... ) );
+	__DEFINE__FunctionTypeDeducerImpl( TReturn( *)( TParams... ) );
+	__DEFINE__FunctionTypeDeducerImpl( TReturn( &)( TParams... ) );
 
-	template<typename TFunctionToUse , typename TReturn , typename... TParams>
-	struct _FunctionTypeDeducerImpl<Functor<TReturn , TParams...> , TFunctionToUse>
-	{
-		using impl = FunctorImpl<TFunctionToUse , TReturn , TParams...>;
-		using base = Functor<TReturn , TParams...>;
-		using evnt = Event<TReturn , TParams...>;
-		using pevnt = P_Event<TReturn , TParams...>;
-		using pbase = P_Functor<TReturn , TParams...>;
-	};
+#undef __DEFINE__FunctionTypeDeducerImpl
 
-	template<typename TFunctionToUse , typename TReturn , typename... TParams>
-	struct _FunctionTypeDeducerImpl<TReturn( TParams... ) , TFunctionToUse>
-	{
-		using impl = FunctorImpl<TFunctionToUse , TReturn , TParams...>;
-		using base = Functor<TReturn , TParams...>;
-		using evnt = Event<TReturn , TParams...>;
-		using pevnt = P_Event<TReturn , TParams...>;
-		using pbase = P_Functor<TReturn , TParams...>;
-	};
+#define __DEFINE__FunctionTypeDeducerImplWithVoidTFunctionToUse(...)\
+template<typename TReturn , typename... TParams>\
+struct _FunctionTypeDeducerImpl<__VA_ARGS__>\
+{\
+	using base = Functor<TReturn , TParams...>;\
+	using evnt = Event<TReturn , TParams...>;\
+	using pevnt = P<Event<TReturn , TParams...>>;\
+	using pbase = P<Functor<TReturn , TParams...>>;\
+};
 
-	template<typename TFunctionToUse , typename TReturn , typename... TParams>
-	struct _FunctionTypeDeducerImpl<TReturn( *)( TParams... ) , TFunctionToUse>
-	{
-		using impl = FunctorImpl<TFunctionToUse , TReturn , TParams...>;
-		using base = Functor<TReturn , TParams...>;
-		using evnt = Event<TReturn , TParams...>;
-		using pevnt = P_Event<TReturn , TParams...>;
-		using pbase = P_Functor<TReturn , TParams...>;
-	};
+	__DEFINE__FunctionTypeDeducerImplWithVoidTFunctionToUse( W<Functor<TReturn , TParams...>> );
+	__DEFINE__FunctionTypeDeducerImplWithVoidTFunctionToUse( P<Functor<TReturn , TParams...>> );
+	__DEFINE__FunctionTypeDeducerImplWithVoidTFunctionToUse( Functor<TReturn , TParams...> );
+	__DEFINE__FunctionTypeDeducerImplWithVoidTFunctionToUse( W<Event<TReturn , TParams...>> );
+	__DEFINE__FunctionTypeDeducerImplWithVoidTFunctionToUse( P<Event<TReturn , TParams...>> );
+	__DEFINE__FunctionTypeDeducerImplWithVoidTFunctionToUse( Event<TReturn , TParams...> );
+	__DEFINE__FunctionTypeDeducerImplWithVoidTFunctionToUse( TReturn( TParams... ) );
+	__DEFINE__FunctionTypeDeducerImplWithVoidTFunctionToUse( TReturn( *)( TParams... ) );
+	__DEFINE__FunctionTypeDeducerImplWithVoidTFunctionToUse( TReturn( &)( TParams... ) );
 
-	template<typename TFunctionToUse , typename... TParams>
-	struct _FunctionTypeDeducerImpl<P_Functor<void , TParams...> , TFunctionToUse>
-	{
-		using impl = FunctorImpl<TFunctionToUse , void , TParams...>;
-		using base = Functor<void , TParams...>;
-		using evnt = Event<void , TParams...>;
-		using pevnt = P_Event<void , TParams...>;
-		using pbase = P_Functor<void , TParams...>;
-	};
-
-	template<typename TFunctionToUse , typename... TParams>
-	struct _FunctionTypeDeducerImpl<Functor<void , TParams...> , TFunctionToUse>
-	{
-		using impl = FunctorImpl<TFunctionToUse , void , TParams...>;
-		using base = Functor<void , TParams...>;
-		using evnt = Event<void , TParams...>;
-		using pevnt = P_Event<void , TParams...>;
-		using pbase = P_Functor<void , TParams...>;
-	};
-
-	template<typename TFunctionToUse , typename... TParams>
-	struct _FunctionTypeDeducerImpl<P_Event<void , TParams...> , TFunctionToUse>
-	{
-		using impl = FunctorImpl<TFunctionToUse , void , TParams...>;
-		using base = Functor<void , TParams...>;
-		using evnt = Event<void , TParams...>;
-		using pevnt = P_Event<void , TParams...>;
-		using pbase = P_Functor<void , TParams...>;
-	};
-
-	template<typename TFunctionToUse , typename... TParams>
-	struct _FunctionTypeDeducerImpl<Event<void , TParams...> , TFunctionToUse>
-	{
-		using impl = FunctorImpl<TFunctionToUse , void , TParams...>;
-		using base = Functor<void , TParams...>;
-		using evnt = Event<void , TParams...>;
-		using pevnt = P_Event<void , TParams...>;
-		using pbase = P_Functor<void , TParams...>;
-	};
-
-	template<typename TFunctionToUse , typename... TParams>
-	struct _FunctionTypeDeducerImpl<void( TParams... ) , TFunctionToUse>
-	{
-		using impl = FunctorImpl<TFunctionToUse , void , TParams...>;
-		using base = Functor<void , TParams...>;
-		using evnt = Event<void , TParams...>;
-		using pevnt = P_Event<void , TParams...>;
-		using pbase = P_Functor<void , TParams...>;
-	};
-
-	template<typename TFunctionToUse , typename... TParams>
-	struct _FunctionTypeDeducerImpl<void( *)( TParams... ) , TFunctionToUse>
-	{
-		using impl = FunctorImpl<TFunctionToUse , void , TParams...>;
-		using base = Functor<void , TParams...>;
-		using evnt = Event<void , TParams...>;
-		using pevnt = P_Event<void , TParams...>;
-		using pbase = P_Functor<void , TParams...>;
-	};
-
-	template<typename TReturn , typename... TParams>
-	struct _FunctionTypeDeducerImpl<P_Functor<TReturn , TParams...>>
-	{
-		using base = Functor<TReturn , TParams...>;
-		using evnt = Event<TReturn , TParams...>;
-		using pevnt = P_Event<TReturn , TParams...>;
-		using pbase = P_Functor<TReturn , TParams...>;
-	};
-
-	template<typename TReturn , typename... TParams>
-	struct _FunctionTypeDeducerImpl<Functor<TReturn , TParams...>>
-	{
-		using base = Functor<TReturn , TParams...>;
-		using evnt = Event<TReturn , TParams...>;
-		using pevnt = P_Event<TReturn , TParams...>;
-		using pbase = P_Functor<TReturn , TParams...>;
-	};
-
-	template<typename TReturn , typename... TParams>
-	struct _FunctionTypeDeducerImpl<TReturn( TParams... )>
-	{
-		using base = Functor<TReturn , TParams...>;
-		using evnt = Event<TReturn , TParams...>;
-		using pevnt = P_Event<TReturn , TParams...>;
-		using pbase = P_Functor<TReturn , TParams...>;
-	};
-
-	template<typename TReturn , typename... TParams>
-	struct _FunctionTypeDeducerImpl<TReturn( *)( TParams... )>
-	{
-		using base = Functor<TReturn , TParams...>;
-		using evnt = Event<TReturn , TParams...>;
-		using pevnt = P_Event<TReturn , TParams...>;
-		using pbase = P_Functor<TReturn , TParams...>;
-	};
-
-	template<typename... TParams>
-	struct _FunctionTypeDeducerImpl<P_Functor<void , TParams...>>
-	{
-		using base = Functor<void , TParams...>;
-		using evnt = Event<void , TParams...>;
-		using pevnt = P_Event<void , TParams...>;
-		using pbase = P_Functor<void , TParams...>;
-	};
-
-	template<typename... TParams>
-	struct _FunctionTypeDeducerImpl<Functor<void , TParams...>>
-	{
-		using base = Functor<void , TParams...>;
-		using evnt = Event<void , TParams...>;
-		using pevnt = P_Event<void , TParams...>;
-		using pbase = P_Functor<void , TParams...>;
-	};
-
-	template<typename... TParams>
-	struct _FunctionTypeDeducerImpl<P_Event<void , TParams...>>
-	{
-		using base = Functor<void , TParams...>;
-		using evnt = Event<void , TParams...>;
-		using pevnt = P_Event<void , TParams...>;
-		using pbase = P_Functor<void , TParams...>;
-	};
-
-	template<typename... TParams>
-	struct _FunctionTypeDeducerImpl<Event<void , TParams...>>
-	{
-		using base = Functor<void , TParams...>;
-		using evnt = Event<void , TParams...>;
-		using pevnt = P_Event<void , TParams...>;
-		using pbase = P_Functor<void , TParams...>;
-	};
-
-	template<typename... TParams>
-	struct _FunctionTypeDeducerImpl<void( TParams... )>
-	{
-		using base = Functor<void , TParams...>;
-		using evnt = Event<void , TParams...>;
-		using pevnt = P_Event<void , TParams...>;
-		using pbase = P_Functor<void , TParams...>;
-	};
-
-	template<typename... TParams>
-	struct _FunctionTypeDeducerImpl<void( *)( TParams... )>
-	{
-		using base = Functor<void , TParams...>;
-		using evnt = Event<void , TParams...>;
-		using pevnt = P_Event<void , TParams...>;
-		using pbase = P_Functor<void , TParams...>;
-	};
+#undef __DEFINE__FunctionTypeDeducerImplWithVoidTFunctionToUse
 #pragma endregion
 
 	template<typename TFunc> using EventFrom = typename _FunctionTypeDeducerImpl<TFunc>::evnt;
-	template<typename TFunc> using P_EventFrom = typename _FunctionTypeDeducerImpl<TFunc>::pevnt;
 	template<typename TFunc> using FuncFrom = typename _FunctionTypeDeducerImpl<TFunc>::base;
-	template<typename TFunc> using P_FuncFrom = typename _FunctionTypeDeducerImpl<TFunc>::pbase;
 
 	struct _HashGCP
 	{
@@ -1385,7 +1237,7 @@ protected:
 	namespace IntLiterals
 	{
 	#define __DEFINE_IntLiterals(name, cname, undTupe) \
-		static P_##name operator""_##cname(unsigned long long int param){\
+		static P<name> operator""_##cname(unsigned long long int param){\
 			return name::Make(static_cast<undTupe>(param));\
 		}
 
@@ -1404,7 +1256,7 @@ protected:
 	namespace FltLiterals
 	{
 	#define __DEFINE_FltLiterals(name, cname, undTupe) \
-		static P_##name operator""_##cname(long double param){return name::Make(static_cast<undTupe>(param));}
+		static P<name> operator""_##cname(long double param){return name::Make(static_cast<undTupe>(param));}
 
 		__DEFINE_FltLiterals( Float , flt , float );
 		__DEFINE_FltLiterals( Double , dbl , double );
@@ -1414,7 +1266,7 @@ protected:
 
 	namespace StrLiterals
 	{
-		forceinline static P_String operator""_us( const char* param , std::size_t ) { return String::Make( param ); }
+		forceinline static P<String> operator""_us( const char* param , std::size_t ) { return String::Make( param ); }
 	}
 }
 

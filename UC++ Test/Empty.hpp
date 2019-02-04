@@ -20,5 +20,5 @@ UC_HasMethods(
 
 int NativeFunction( );
 
-UCEndInterface( Empty );
+UCEndInterface;
 

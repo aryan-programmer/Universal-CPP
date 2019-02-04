@@ -212,7 +212,7 @@ UC_HasMethods(
 
 void NativeFunction( );
 
-UCEndInterface( Empty );
+UCEndInterface;
 ```
 
 
@@ -340,8 +340,6 @@ public:
 	virtual ::UC::P_Any Call( const ::UC::NatString& fname , const ::UC::NatODeque& args ) override {return callImpl( fname , args );};
 	void NativeFunction( );
 };
-using P_Empty = ::UC::GCP<Empty>;
-using W_Empty = ::UC::WeakPtr<Empty>;
 ```
 
 

@@ -6,7 +6,7 @@
 #include "Generator.hpp"
 
 #ifndef UC_COROUTINE_FIXED_UPDATE_TIME_IN_MS
-#define UC_COROUTINE_FIXED_UPDATE_TIME_IN_MS 1
+#define UC_COROUTINE_FIXED_UPDATE_TIME_IN_MS 10
 #endif // !UC_COROUTINE_FIXED_UPDATE_TIME_IN_MS
 
 namespace UC
@@ -21,12 +21,12 @@ namespace UC
 		UC_HasNoMethods;
 	public:
 		virtual bool Finished( ) = 0;
-		virtual void OnUpdate( GCP<Coroutine> ) { }
-		UCEndInterface( YieldInstruction );
+		virtual void OnUpdate( P<Coroutine> ) { }
+		UCEndInterface;
 	#pragma endregion
 
 
-		using GeneratorForCoroutine = Generator<P_YieldInstruction>;
+		using GeneratorForCoroutine = Generator<P<YieldInstruction>>;
 
 
 	#pragma region Coroutine
@@ -37,8 +37,8 @@ namespace UC
 		GeneratorForCoroutine __fiber;
 		bool __finished = false;
 		bool __paused = false;
-		P_YieldInstruction __instruction;
-		P_Event<void> __onStop;
+		P<YieldInstruction> __instruction;
+		P<Event<void>> __onStop;
 		bool operator ==( const Coroutine& r )const { return r.__instruction.RefEq( __instruction ); }
 		bool operator !=( const Coroutine& r )const { return !r.__instruction.RefEq( __instruction ); }
 
@@ -51,7 +51,7 @@ namespace UC
 		/// Adds a callback for when the Future fails.
 		/// Will call immediately if the Future has already failed.
 		/// </summary>
-		void OnStopF( P_Functor<void> inCallback )
+		void OnStopF( P<Functor<void>> inCallback )
 		{
 			if ( !inCallback ) return;
 			__onStop->AddF( inCallback );
@@ -67,7 +67,7 @@ namespace UC
 		}
 	protected:
 		Coroutine( GeneratorForCoroutine&& _fiber ) :__fiber( std::move( _fiber ) ) , __onStop( Event<void>::Make( ) ) { }
-		UCEndInterface( Coroutine );
+		UCEndInterface;
 	#pragma endregion
 
 
@@ -84,7 +84,7 @@ namespace UC
 				std::chrono::steady_clock::now( ).time_since_epoch( )
 				) + std::chrono::milliseconds( timeToWait ) )
 		{ }
-		UCEndInterface( WaitForMillis );
+		UCEndInterface;
 	#pragma endregion
 
 
@@ -101,7 +101,7 @@ namespace UC
 		TFunc func;
 
 		ContinueWhen( TFunc fun ) :func( fun ) { }
-		UCEndTemplateInterface( ContinueWhen , ( TFunc ) );
+		UCEndInterface;
 	#pragma endregion
 
 
@@ -118,7 +118,7 @@ namespace UC
 		TFunc func;
 
 		BlockUntil( TFunc fun ) :func( fun ) { }
-		UCEndTemplateInterface( BlockUntil , ( TFunc ) );
+		UCEndInterface;
 	#pragma endregion
 
 
@@ -129,20 +129,22 @@ namespace UC
 	public:
 		bool Finished( )
 		{
-			for ( auto& i : coros ) if ( !i->Finished( ) )return false;
+			for ( auto& i : coros ) 
+				if ( !i->Finished( ) )
+					return false;
 			return true;
 		}
-		void OnUpdate( P_Coroutine cor )
+		void OnUpdate( P<Coroutine> cor )
 		{
 			for ( auto& i : coros )i->OnUpdate( cor );
 		}
 		template<typename... Ts> static pself MakeI( Ts&&... vs ) { return pself( new self { std::forward<Ts>( vs )... } ); }
 	protected:
-		NatVector<P_YieldInstruction> coros;
-		WaitForAll( std::initializer_list<P_YieldInstruction> ilst ) :coros( ilst ) { }
-		WaitForAll( NatVector<P_YieldInstruction>&& vec ) :coros( std::move( vec ) ) { }
-		WaitForAll( const NatVector<P_YieldInstruction>& vec ) :coros( vec ) { }
-		UCEndInterface( WaitForAll );
+		NatVector<P<YieldInstruction>> coros;
+		WaitForAll( std::initializer_list<P<YieldInstruction>> ilst ) :coros( ilst ) { }
+		WaitForAll( NatVector<P<YieldInstruction>>&& vec ) :coros( std::move( vec ) ) { }
+		WaitForAll( const NatVector<P<YieldInstruction>>& vec ) :coros( vec ) { }
+		UCEndInterface;
 	#pragma endregion
 
 
@@ -151,36 +153,36 @@ namespace UC
 		UC_IsSingleton;
 		UC_HasNoMethods;
 	public:
-		void OnUpdate( P_Coroutine coro );
+		void OnUpdate( P<Coroutine> coro );
 		bool Finished( ) { return false; }
 	protected:
 		WhenCalledStop( ) { }
-		UCEndInterface( WhenCalledStop );
+		UCEndInterface;
 	#pragma endregion
 
 		namespace CoroLiterals
 		{
-			static P_WaitForMillis operator""_wms( unsigned long long int param )
+			static P<WaitForMillis> operator""_wms( unsigned long long int param )
 			{
 				return WaitForMillis::Make( param );
 			}
 
-			static P_WaitForMillis operator""_ws( long double param )
+			static P<WaitForMillis> operator""_ws( long double param )
 			{
 				return WaitForMillis::Make( static_cast< unsigned long long int >( param * 1000 ) );
 			}
 
-			static P_WaitForMillis operator""_ws( unsigned long long int param )
+			static P<WaitForMillis> operator""_ws( unsigned long long int param )
 			{
 				return WaitForMillis::Make( param * 1000 );
 			}
 
-			static P_WaitForMillis operator""_wait( long double param )
+			static P<WaitForMillis> operator""_wait( long double param )
 			{
 				return WaitForMillis::Make( static_cast< unsigned long long int >( param * 1000 ) );
 			}
 
-			static P_WaitForMillis operator""_wait( unsigned long long int param )
+			static P<WaitForMillis> operator""_wait( unsigned long long int param )
 			{
 				return WaitForMillis::Make( param * 1000 );
 			}
@@ -200,29 +202,27 @@ namespace UC
 		/// </summary>
 		/// <param name="fiber">The generator which will be wrapped as a coroutine</param>
 		/// <returns>The coroutine generated.</returns>
-		P_Coroutine Start( GeneratorForCoroutine&& fiber );
+		P<Coroutine> Start( GeneratorForCoroutine&& fiber );
 
 		/// <summary>
 		/// Removes the specified coroutine from the scheduled coroutine list.
 		/// </summary>
 		/// <param name="coroutine"></param>
-		void Stop( P_Coroutine coroutine );
+		void Stop( P<Coroutine> coroutine );
 
-		static P_WaitForMillis WaitForSec( long double param )
+		static P<WaitForMillis> WaitForSec( long double param )
 		{
 			return WaitForMillis::Make( static_cast< unsigned long long int >( param * 1000 ) );
 		}
 
-		template<typename T> static P_ContinueWhen<T> WaitUntil( T&& f ) { return ContinueWhen<T>::Make( std::forward<T>( f ) ); }
+		template<typename T> static P<ContinueWhen<T>> WaitUntil( T&& f ) { return ContinueWhen<T>::Make( std::forward<T>( f ) ); }
 
-		template<typename T> static P_BlockUntil<T> WaitWhile( T&& f ) { return BlockUntil<T>::Make( std::forward<T>( f ) ); }
+		template<typename T> static P<BlockUntil<T>> WaitWhile( T&& f ) { return BlockUntil<T>::Make( std::forward<T>( f ) ); }
 
-		static P_WhenCalledStop Stop( ) { return WhenCalledStop::Make( ); }
+		static P<WhenCalledStop> Stop( ) { return WhenCalledStop::Make( ); }
 
-		template<typename T>
-		static auto ExecWaitForAll( T&& v )->decltype( std::forward<T>( v ) ) { return std::forward<T>( v ); }
 		template<typename... Ts>
-		static P_WaitForAll ExecWaitForAll( Ts&&... vs ) { return WaitForAll::MakeI( Start( std::move( vs ) )... ); }
+		static P<WaitForAll> ExecWaitForAll( Ts&&... vs ) { return WaitForAll::MakeI( Start( std::move( vs ) )... ); }
 	}
 }
 
@@ -284,7 +284,7 @@ namespace UC
 
 		Failure __failure;
 
-		W_Coroutine __coro;
+		W<Coroutine> __coro;
 
 		mutable boost::recursive_mutex __mtx;
 	public:
@@ -444,7 +444,7 @@ namespace UC
 		/// If the Routine stops, the Future will fail.
 		/// If the Future is canceled, the Routine will Stop.
 		/// </summary>
-		Future<T>& LinkTo( P_Coroutine inRoutine )
+		Future<T>& LinkTo( P<Coroutine> inRoutine )
 		{
 			boost::lock_guard<boost::recursive_mutex> __lock( __mtx );
 			if ( !__coro && __state == State::InProgress )
@@ -455,7 +455,7 @@ namespace UC
 			return *this;
 		}
 
-		P_Coroutine GetLinked( ) const
+		P<Coroutine> GetLinked( ) const
 		{
 			boost::lock_guard<boost::recursive_mutex> __lock( __mtx );
 			return __coro.Lock( );
@@ -476,7 +476,7 @@ namespace UC
 			if ( __state == State::InProgress )
 				Fail( FailureType::RoutineStopped );
 		}
-		UCEndTemplateInterface( Future , ( T ) );
+		UCEndInterface;
 	#pragma endregion
 
 
@@ -491,7 +491,7 @@ namespace UC
 
 		Failure __failure;
 
-		W_Coroutine __coro;
+		W<Coroutine> __coro;
 
 		mutable boost::recursive_mutex __mtx;
 	public:
@@ -627,7 +627,7 @@ namespace UC
 		/// If the Routine stops, the Future will fail.
 		/// If the Future is canceled, the Routine will Stop.
 		/// </summary>
-		Future<void>& LinkTo( P_Coroutine inRoutine )
+		Future<void>& LinkTo( P<Coroutine> inRoutine )
 		{
 			boost::lock_guard<boost::recursive_mutex> __lock( __mtx );
 			if ( !__coro && __state == State::InProgress )
@@ -638,7 +638,7 @@ namespace UC
 			return *this;
 		}
 
-		P_Coroutine GetLinked( ) const
+		P<Coroutine> GetLinked( ) const
 		{
 			boost::lock_guard<boost::recursive_mutex> __lock( __mtx );
 			return __coro.Lock( );
@@ -659,7 +659,7 @@ namespace UC
 			if ( __state == State::InProgress )
 				Fail( FailureType::RoutineStopped );
 		}
-		UCEndHiddenInterface;
+		UCEndInterface;
 	#pragma endregion
 	}
 }
@@ -696,16 +696,16 @@ namespace std
 	}
 }
 
-#define UCCoro(name, params, ...) UCGen(::UC::Coro::P_YieldInstruction, name, params, __VA_ARGS__) using namespace ::UC::Coro::CoroLiterals;
-#define UCCoroLambda(params, ...) UCGenLambda(::UC::Coro::P_YieldInstruction, params, __VA_ARGS__) using namespace ::UC::Coro::CoroLiterals;
-#define UCCoroBeg(params, ...) UCGenBeg(::UC::Coro::P_YieldInstruction, params, __VA_ARGS__) using namespace ::UC::Coro::CoroLiterals;
+#define UCCoro(name, params, ...) UCGen(::UC::P<::UC::Coro::YieldInstruction>, name, params, __VA_ARGS__) using namespace ::UC::Coro::CoroLiterals;
+#define UCCoroLambda(params, ...) UCGenLambda(::UC::P<::UC::Coro::YieldInstruction>, params, __VA_ARGS__) using namespace ::UC::Coro::CoroLiterals;
+#define UCCoroBeg(params, ...) UCGenBeg(::UC::P<::UC::Coro::YieldInstruction>, params, __VA_ARGS__) using namespace ::UC::Coro::CoroLiterals;
 #define UCCoroEnd UCBDGenEnd
 
 #define UCRCoroBeg(ret, params, ...)\
 {\
-	using __uc_gen_holder_ = ::UC::_Detail::_GeneratorFuncHld<::UC::Coro::P_YieldInstruction>;\
+	using __uc_gen_holder_ = ::UC::_Detail::_GeneratorFuncHld<::UC::P<::UC::Coro::YieldInstruction>>;\
 	auto __future__ = ::UC::Coro::Future<BOOST_PP_REMOVE_PARENS(ret)>::Make();\
-	auto gen = ::UC::Coro::Start(::UC::Coro::GeneratorForCoroutine( __uc_gen_holder_( [__UC_TUPLE_FOR_EACH_I(__UC_captureParams,params) __uc_coro_last_line = ::UC::_Detail::LineRecordType( 0 ), __uc_coro_makes_non_copyable = ::UC::_Detail::makes_noncopyable(), __future__, __VA_ARGS__](::UC::Coro::P_YieldInstruction& __uc_coro_ret_val) mutable{\
+	auto gen = ::UC::Coro::Start(::UC::Coro::GeneratorForCoroutine( __uc_gen_holder_( [__UC_TUPLE_FOR_EACH_I(__UC_captureParams,params) __uc_coro_last_line = ::UC::_Detail::LineRecordType( 0 ), __uc_coro_makes_non_copyable = ::UC::_Detail::makes_noncopyable(), __future__, __VA_ARGS__](::UC::P<::UC::Coro::YieldInstruction>& __uc_coro_ret_val) mutable{\
 		using namespace ::UC::Coro::CoroLiterals;\
 		if(__uc_coro_last_line == -1) { return false; }\
 		switch(__uc_coro_last_line){\
@@ -720,8 +720,8 @@ namespace std
 	return __future__;\
 };
 
-#define UCRCoro(ret, name, params, ...) ::UC::Coro::P_Future<BOOST_PP_REMOVE_PARENS(ret)> name(__UC_TUPLE_FOR_EACH_I(__UC_genParams,params)) UCRCoroBeg(ret, params, __VA_ARGS__)
-#define UCRCoroLambda(params, ...) (__UC_TUPLE_FOR_EACH_I(__UC_genParams,params)) -> ::UC::Coro::P_Future<BOOST_PP_REMOVE_PARENS(ret)> UCRCoroBeg(ret, params, __VA_ARGS__)
+#define UCRCoro(ret, name, params, ...) ::UC::P<::UC::Coro::Future<BOOST_PP_REMOVE_PARENS(ret)>> name(__UC_TUPLE_FOR_EACH_I(__UC_genParams,params)) UCRCoroBeg(ret, params, __VA_ARGS__)
+#define UCRCoroLambda(params, ...) (__UC_TUPLE_FOR_EACH_I(__UC_genParams,params)) -> ::UC::P<::UC::Coro::Future<BOOST_PP_REMOVE_PARENS(ret)>> UCRCoroBeg(ret, params, __VA_ARGS__)
 
 #define UCCoroReturn(value) __future__->Complete(value)
 #define UCCoroFail UCYieldEsc
