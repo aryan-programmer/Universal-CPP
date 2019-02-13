@@ -15,19 +15,23 @@
 
 namespace UC
 {
-	struct FakeVoid
+	struct VoidEmul final
 	{
-		forceinline static FakeVoid& I( )
+		forceinline static VoidEmul& I( )
 		{
-			static FakeVoid s;
+			static VoidEmul s;
 			return s;
 		};
 
-		forceinline FakeVoid( ) { }
-		forceinline FakeVoid( nullptr_t ) { }
-		forceinline FakeVoid( int16_t ) { }
-		forceinline FakeVoid( int32_t ) { }
-		forceinline FakeVoid( int64_t ) { }
+		forceinline VoidEmul( ) { }
+		forceinline VoidEmul( nullptr_t ) { }
+		forceinline VoidEmul( int16_t ) { }
+		forceinline VoidEmul( int32_t ) { }
+		forceinline VoidEmul( int64_t ) { }
+		forceinline VoidEmul& operator=( nullptr_t ) { return *this; }
+		forceinline VoidEmul& operator=( int16_t ) { return *this; }
+		forceinline VoidEmul& operator=( int32_t ) { return *this; }
+		forceinline VoidEmul& operator=( int64_t ) { return *this; }
 		forceinline operator nullptr_t( ) { return nullptr; }
 		forceinline operator int16_t( ) { return 0i16; }
 		forceinline operator int32_t( ) { return 0i32; }
@@ -85,6 +89,13 @@ namespace UC
 		};
 
 		using LineRecordType = int64_t;
+
+		struct ExceptionDetails
+		{
+			bool isInTry = false;
+			LineRecordType curr {};
+			std::exception_ptr p {};
+		};
 	};
 
 	template<typename T , typename... TInp>
@@ -103,7 +114,7 @@ namespace UC
 		explicit operator bool( ) { return ival != nullptr; }
 		Generator& operator()( TInp... params )
 		{
-			if ( ival != nullptr && !( ival( val , params... ) ) ) { ival = false; };
+			if ( ival != nullptr && !( ival( val , params... ) ) ) { ival = nullptr; };
 			return *this;
 		}
 		___UC_NODISCARD___ const T& operator*( ) const { return val; }
@@ -140,10 +151,12 @@ namespace UC
 
 			iterator& operator++( ) { getVal( ); return *this; }
 
-			bool operator ==( const iterator& r ) const { return ( gen->ival == &r.gen->ival ); }
-			bool operator !=( const iterator& r ) const { return ( gen->ival != &r.gen->ival ); }
-			bool operator ==( nullptr_t ) const { return ( gen->ival == nullptr ); }
-			bool operator !=( nullptr_t ) const { return ( gen->ival != nullptr ); }
+			bool operator ==( const iterator& r ) const
+			{ return ( gen == &r.gen && gen->ival == &r.gen->ival ); }
+			bool operator !=( const iterator& r ) const
+			{ return ( gen != &r.gen || gen->ival != &r.gen->ival ); }
+			bool operator ==( nullptr_t ) const { return ( gen == nullptr && gen->ival == nullptr ); }
+			bool operator !=( nullptr_t ) const { return ( gen != nullptr || gen->ival != nullptr ); }
 
 		private:
 			void getVal( )
@@ -192,13 +205,25 @@ namespace UC
 #define UCGenBeg(retType, params, ...) \
 {\
 	using __uc_gen_holder_ = ::UC::_Detail::_GeneratorFuncHld<BOOST_PP_REMOVE_PARENS(retType)>;\
-	return ::UC::Generator<BOOST_PP_REMOVE_PARENS(retType)>( __uc_gen_holder_( [__UC_TUPLE_FOR_EACH_I(__UC_captureParams,params) __uc_coro_last_line = ::UC::_Detail::LineRecordType( 0 ), __uc_coro_makes_non_copyable = ::UC::_Detail::makes_noncopyable(), __VA_ARGS__](BOOST_PP_REMOVE_PARENS(retType)& __uc_coro_ret_val) mutable{\
+	return ::UC::Generator<BOOST_PP_REMOVE_PARENS(retType)>( __uc_gen_holder_( [__UC_TUPLE_FOR_EACH_I(__UC_captureParams,params) __uc_coro_last_line = ::UC::_Detail::LineRecordType( 0 ), __uc_coro_makes_non_copyable = ::UC::_Detail::makes_noncopyable(), __uc_exception_info = ::UC::_Detail::ExceptionDetails(), __VA_ARGS__](BOOST_PP_REMOVE_PARENS(retType)& __uc_coro_ret_val) mutable{\
 		if(__uc_coro_last_line == -1) { return false; }\
-		switch(__uc_coro_last_line){\
-		case 0:;
+		__uc_coro_start:\
+		try{\
+			switch(__uc_coro_last_line){\
+			case 0:;
 
 #define UCGenEnd\
-		};\
+			};\
+		}\
+		catch(...)\
+		{\
+			if(__uc_exception_info.isInTry)\
+			{\
+				__uc_coro_last_line = __uc_exception_info.curr;\
+				__uc_exception_info.p = ::std::current_exception();\
+				goto __uc_coro_start;\
+			} else{ __uc_coro_last_line = -1; throw; }\
+		}\
 		__uc_coro_last_line = -1;\
 		return false;\
 	}));\
@@ -207,13 +232,25 @@ namespace UC
 #define UCBDGenBeg(retType, params, invocParams, ...) \
 {\
 	using __uc_gen_holder_ = ::UC::_Detail::_GeneratorFuncHld<BOOST_PP_REMOVE_PARENS(retType), __UC_TUPLE_FOR_EACH_I(__UC_genInvocTypeParams,invocParams)>;\
-	return ::UC::Generator<BOOST_PP_REMOVE_PARENS(retType),__UC_TUPLE_FOR_EACH_I(__UC_genInvocTypeParams,invocParams)>(__uc_gen_holder_([__UC_TUPLE_FOR_EACH_I(__UC_captureParams,params) __uc_coro_last_line = ::UC::_Detail::LineRecordType( 0 ), __uc_coro_makes_non_copyable = ::UC::_Detail::makes_noncopyable(), __VA_ARGS__](BOOST_PP_REMOVE_PARENS(retType)& __uc_coro_ret_val, __UC_TUPLE_FOR_EACH_I(__UC_genInvocParams,invocParams)) mutable\
+	return ::UC::Generator<BOOST_PP_REMOVE_PARENS(retType),__UC_TUPLE_FOR_EACH_I(__UC_genInvocTypeParams,invocParams)>(__uc_gen_holder_([__UC_TUPLE_FOR_EACH_I(__UC_captureParams,params) __uc_coro_last_line = ::UC::_Detail::LineRecordType( 0 ), __uc_coro_makes_non_copyable = ::UC::_Detail::makes_noncopyable(), __uc_exception_info = ::UC::_Detail::ExceptionDetails(), __VA_ARGS__](BOOST_PP_REMOVE_PARENS(retType)& __uc_coro_ret_val, __UC_TUPLE_FOR_EACH_I(__UC_genInvocParams,invocParams)) mutable\
 	{\
 		if(__uc_coro_last_line == -1) { return false; }\
-		switch(__uc_coro_last_line){\
-		case 0:;
+		__uc_coro_start:\
+		try{\
+			switch(__uc_coro_last_line){\
+			case 0:;
 
 #define UCBDGenEnd\
+			};\
+		}\
+		catch(...)\
+		{\
+			if(__uc_exception_info.isInTry)\
+			{\
+				__uc_coro_last_line = __uc_exception_info.curr;\
+				__uc_exception_info.p = ::std::current_exception();\
+				goto __uc_coro_start;\
+			} else{ __uc_coro_last_line = -1; throw; }\
 		}\
 		__uc_coro_last_line = -1;\
 		return false;\
@@ -274,4 +311,32 @@ __UC_SWITCH(n, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__), goto label, label: continu
 __UC_SWITCH_2(n, BOOST_PP_CAT(__uc_gen_sw_cont_, __LINE__), __VA_ARGS__)
 
 #define UCGenSwitch(n, ...) __UC_SWITCH(n, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__), throw ::UC::ContinueStatementInSwitchStatementInAGenerator("There can't be a continue statement in a switch statement in a generator."), )
+
+#ifdef BOOST_MSVC
+#define __UCPushNameHiddenWarning\
+ __pragma(warning(push))\
+ __pragma(warning(disable:4456))
+#define __UCPopWarning __pragma(warning(pop))
+#else
+#define __UCPushNameHiddenWarning
+#define __UCPopWarning
+#endif
+
+#define UCTry \
+__UCPushNameHiddenWarning \
+using __uc_curr_switch_lable_for_try = std::integral_constant<::UC::_Detail::LineRecordType, __UC_MostlyUniquePreprocessingTimeInt>;\
+__UCPopWarning \
+__uc_exception_info.curr = __uc_curr_switch_lable_for_try::value;\
+__uc_exception_info.isInTry = true;\
+if (true)
+
+#define UCCatch \
+else case __uc_curr_switch_lable_for_try::value:\
+	try\
+	{\
+		auto exP = __uc_exception_info.p;\
+		__uc_exception_info.isInTry = false;\
+		::std::rethrow_exception(exP);\
+	}\
+	catch
 #endif // !__UC__GENERATOR_HPP__

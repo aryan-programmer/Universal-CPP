@@ -78,15 +78,16 @@ static ::UC::P<Object> make_reflective( const ::UC::NatOVector& args ){\
 	}\
 }
 
-#   define UC_IsSingleton static pself Make(){\
+#   define UC_IsSingleton \
+static pself Make(){\
 	static pself v(new self());\
 	return v;\
 }\
-forceinline pself GetI(){return Make();}\
-forceinline pself GetInst(){return Make();}\
-forceinline pself GetInstance(){return Make();}\
-forceinline pself Inst(){return Make();}\
-forceinline pself Instance(){return Make();}\
+forceinline static pself GetI(){return Make();}\
+forceinline static pself GetInst(){return Make();}\
+forceinline static pself GetInstance(){return Make();}\
+forceinline static pself Inst(){return Make();}\
+forceinline static pself Instance(){return Make();}\
 static ::UC::P<Object> make_reflective(const ::UC::NatOVector& args){\
 	if(args.size() == 0)return Make();\
 	throw ::UC::NoSuchConstructor_Exception(::UC::ConcatNatStrings(::UC::NatString("Type \""),SGetTypeName(),"\" is a singleton and hence the constructor can take only 1 parameter."));\

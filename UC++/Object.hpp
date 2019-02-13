@@ -4,6 +4,7 @@
 #include "stdafx.h"
 #include "Interface.hpp"
 #include "byte.hpp"
+#include <boost\type_index.hpp>
 
 namespace UC
 {
@@ -13,26 +14,7 @@ namespace UC
 	template<typename T> using HasSGTN = decltype( T::SGetTypeName( ) );
 
 #pragma region Hashing
-	template<typename... Args>
-	size_t CombineHashCodes( Args&&... hashCodes )
-	{
-		size_t hash1 = ( 0x1505UL << 0x10UL ) + 0x1505UL;
-		size_t hash2 = hash1;
-
-		size_t i = 0UL;
-		auto f = [ &hash1 , &hash2 , &i ] ( auto&& hashCode )
-		{
-			if ( i % 0x2 == 0x0 )
-				hash1 = ( ( hash1 << 0x5 ) + hash1 + ( hash1 >> 0x1b ) ) ^ hashCode;
-			else
-				hash2 = ( ( hash2 << 0x5 ) + hash2 + ( hash2 >> 0x1b ) ) ^ hashCode;
-
-			++i;
-		};
-		( f( hashCodes ) , ... );
-
-		return hash1 + ( hash2 * 0x5d588b65 );
-	}
+	template<typename... Ts>forceinline void forceRepeatedEval( Ts&&... ) { }
 
 	template<typename TColl>
 	size_t CombineHashCodesInColl( const TColl& coll )
@@ -50,6 +32,29 @@ namespace UC
 
 			++i;
 		};
+
+		return hash1 + ( hash2 * 0x5d588b65 );
+	}
+
+	template<typename... Args>
+	size_t CombineHashCodes( Args&&... hashCodes )
+	{
+		size_t hash1 = ( 0x1505UL << 0x10UL ) + 0x1505UL;
+		size_t hash2 = hash1;
+
+		size_t i = 0UL;
+		auto f = [ &hash1 , &hash2 , &i ] ( auto&& hashCode )
+		{
+			if ( i % 0x2 == 0x0 )
+				hash1 = ( ( hash1 << 0x5 ) + hash1 + ( hash1 >> 0x1b ) ) ^ hashCode;
+			else
+				hash2 = ( ( hash2 << 0x5 ) + hash2 + ( hash2 >> 0x1b ) ) ^ hashCode;
+
+			++i;
+
+			return ' ';
+		};
+		forceRepeatedEval( f( hashCodes )... );
 
 		return hash1 + ( hash2 * 0x5d588b65 );
 	}
@@ -87,7 +92,7 @@ namespace UC
 
 #pragma region Native String & Concatenation
 	/// <summary>
-	/// Represents text as a mutable sequence of ASCII code units.
+	/// Represents text as a _mutable_ sequence of ASCII code units.
 	/// </summary>
 	using NatString = std::string;
 
@@ -105,6 +110,12 @@ namespace UC
 	{ return ConcatNatStringsI( { NatString( args )... } ); }
 #pragma endregion
 
+
+	template<typename T> forceinline const NatString& SGetTypeName( std::true_type ) { return T::SGetTypeName( ); }
+	template<typename T> const NatString& SGetTypeName( std::false_type )
+	{ static NatString s( boost::typeindex::type_id<T>( ).pretty_name( ) ); return s; }
+	template<typename T> forceinline const NatString& SGetTypeName( )
+	{ return SGetTypeName<boost::remove_cv_ref_t<T>>( std::bool_constant<boost::is_detected_v<HasSGTN , boost::remove_cv_ref_t<T>>>( ) ); }
 
 #pragma region Exceptions
 	class Exception : public std::exception
@@ -185,12 +196,6 @@ namespace UC
 
 
 #pragma region Smart Pointers
-	template<typename T> forceinline const NatString& SGetTypeName( std::true_type ) { return T::SGetTypeName( ); }
-	template<typename T> const NatString& SGetTypeName( std::false_type )
-	{ static NatString s( typeid( T ).name( ) ); return s; }
-	template<typename T> forceinline const NatString& SGetTypeName( )
-	{ return SGetTypeName<T>( std::bool_constant<boost::is_detected_v<HasSGTN , T>>( ) ); }
-
 	/// <summary>
 	/// GCPtr is a class for reference counted resource management/ARC (Automatic Reference Counting).
 	/// It holds a strong reference to the object inside it.
@@ -219,11 +224,6 @@ namespace UC
 		forceinline explicit operator bool( ) const noexcept { return ptr != nullptr; }
 		forceinline GCPtr<T>& Reset( ) noexcept { ptr.reset( ); return *this; }
 		forceinline GCPtr<T>& Reset( T* value ) { ptr.reset( value ); return *this; }
-		forceinline GCPtr<T>& Reset( const T& value )
-		{
-			ptr.reset( new T( value ) );
-			return *this;
-		}
 
 		forceinline T& operator*( ) { Get( ); return *ptr; }
 		forceinline const T& operator*( ) const { Get( ); return *ptr; }
@@ -253,6 +253,8 @@ namespace UC
 		return s;
 	};
 
+	template<typename T1 , typename T2>
+	GCPtr<T1> operator |( const GCPtr<T1>& v1 , const GCPtr<T2>& v2 ) { return v1 != nullptr ? v1 : GCPtr<T1>( v2 ); }
 	template<typename T1 , typename T2>
 	forceinline bool operator ==( const GCPtr<T1>& ptr1 , const GCPtr<T2>& ptr2 ) { return *ptr1 == *ptr2; }
 	template<typename T1 , typename T2>
@@ -291,12 +293,11 @@ namespace UC
 		}
 		forceinline GCPtr<T> operator*( ) { return LockIfNotThrow( ); }
 
-		forceinline explicit operator bool( ) const noexcept { return !wptr.expired( ); }
+		forceinline explicit operator bool( ) const noexcept { return *this != nullptr || !wptr.expired( ); }
 		forceinline WeakPtr<T>& operator=( const GCPtr<T>& ptr ) { wptr = ptr.ptr; return *this; }
-		forceinline WeakPtr<T>& operator=( GCPtr<T>&& ptr ) { wptr = ptr.ptr; return *this; }
 
-		forceinline bool operator!=( nullptr_t )const noexcept { return wptr != nullptr; }
-		forceinline bool operator==( nullptr_t )const noexcept { return wptr == nullptr; }
+		forceinline bool operator!=( nullptr_t )const noexcept { return !( *this == nullptr ); }
+		bool operator==( nullptr_t )const noexcept { return !wptr.owner_before( std::weak_ptr<T>{} ) && !std::weak_ptr<T>{}.owner_before( wptr ); }
 
 		template<typename T>
 		friend class EnableGCPtrFromMe;
@@ -527,7 +528,7 @@ UCEndInterface
 #pragma endregion
 
 
-#pragma region Intergal Limits
+#pragma region Integral Limits & Floating Point Constants
 	inline constexpr const int16_t	Int16Min = INT16_MIN;
 	inline constexpr const int16_t	Int16Max = INT16_MAX;
 	inline constexpr const int32_t	Int32Min = INT32_MIN;
@@ -544,6 +545,28 @@ UCEndInterface
 	inline constexpr const byte		ByteMax = ( byte ) UCHAR_MAX;
 	inline constexpr const sbyte	SByteMin = ( sbyte ) CHAR_MIN;
 	inline constexpr const sbyte	SByteMax = ( sbyte ) CHAR_MAX;
+
+	inline constexpr double Pi = 3.14159265358979323846;
+	inline constexpr double Tau = 6.283185307179586;
+	inline constexpr double SqrtPi = 1.77245385091;
+	inline constexpr double PiOver2 = 1.57079632679489661923;
+	inline constexpr double PiOver4 = 0.785398163397448309616;
+	inline constexpr double OneOverPi = 0.318309886183790671538;
+	inline constexpr double TwoOverPi = 0.636619772367581343076;
+	inline constexpr double TwoOverSqrtPi = 1.12837916709551257390;
+	inline constexpr double Sqrt2 = 1.41421356237309504880;
+	inline constexpr double OneOverSqrt2 = 0.707106781186547524401;
+	inline constexpr double E = 2.71828182845904523536;
+	inline constexpr double Log2OfE = 1.44269504088896340736;
+	inline constexpr double Log10OfE = 0.434294481903251827651;
+	inline constexpr double LnOf2 = 0.693147180559945309417;
+	inline constexpr double LnOf10 = 2.30258509299404568402;
+	inline constexpr double NanD = std::numeric_limits<double>::signaling_NaN( );
+	inline constexpr float NanF = std::numeric_limits<float>::signaling_NaN( );
+	inline constexpr double InfD = std::numeric_limits<double>::infinity( );
+	inline constexpr float InfF = std::numeric_limits<float>::infinity( );
+	inline constexpr double NegInfD = -std::numeric_limits<double>::infinity( );
+	inline constexpr float NegInfF = -std::numeric_limits<float>::infinity( );
 #pragma endregion
 
 
@@ -1128,19 +1151,21 @@ protected:
 		}
 	};
 
+	forceinline void __evalAll( std::true_type , TParams... params )
+	{
+		for ( auto& func : lst ) func->Eval( params... );
+	}
+	forceinline NatVector<TReturn> __evalAll( std::false_type , TParams... params )
+	{
+		NatVector<TReturn> vec;
+		vec.reserve( Size( ) );
+		for ( auto& func : lst ) vec.emplace_back( func->Eval( params... ) );
+		return std::move( vec );
+	}
+
 	std::conditional_t<std::is_void_v<TReturn> , void , NatVector<TReturn>> EvalAll( TParams... params )
 	{
-		if constexpr ( std::is_void_v<TReturn> )
-		{
-			for ( auto& func : lst ) func->Eval( params... );
-		}
-		else
-		{
-			NatVector<TReturn> vec;
-			vec.reserve( Size( ) );
-			for ( auto& func : lst ) vec.emplace_back( func->Eval( params... ) );
-			return std::move( vec );
-		}
+		return __evalAll( std::is_void<TReturn>( ) , std::forward<TParams>( params )... );
 	}
 
 	template<typename TFunc> func_id Add( TFunc&& func )
@@ -1156,7 +1181,7 @@ protected:
 		return --lst.end( );
 	}
 
-	forceinline int64_t Size( ) { return lst.size( ); }
+	forceinline uint64_t Size( ) { return lst.size( ); }
 
 	forceinline void Clear( ) { lst.clear( ); }
 
@@ -1268,6 +1293,54 @@ struct _FunctionTypeDeducerImpl<__VA_ARGS__>\
 	{
 		forceinline static P<String> operator""_us( const char* param , std::size_t ) { return String::Make( param ); }
 	}
+
+	namespace AnalogLiterals
+	{
+		template<uint32_t i , uint16_t s>struct Accumulator { };
+		template<uint16_t s>
+		struct Delimiter { };
+
+		template<uint64_t i> struct Line
+		{
+			enum : int64_t { v = i };
+
+			template<uint64_t i2>
+			forceinline constexpr Line<i + i2> operator+( const Line<i2>& ) const
+			{ return Line<i + i2>; }
+		};
+
+		template<uint64_t i , uint16_t s>
+		forceinline constexpr static Accumulator<i + 1 , s> operator*( const Accumulator<i , s>& )
+		{ return Accumulator<i + 1 , s>( ); }
+
+		template<uint64_t i , uint16_t s>
+		forceinline constexpr static Line<( i + 1 )*s> operator*( const Delimiter<s>& , const Accumulator<i , s>& )
+		{ return Line<( i + 1 )*s>( ); }
+
+		template<uint16_t s>
+		forceinline constexpr static Line<s> operator*( const Delimiter<s>& , const Delimiter<s>& )
+		{ return Line<s>( ); }
+		template<uint16_t s>
+		forceinline constexpr static Accumulator<1 , s> operator*( const Delimiter<s>& )
+		{ return Accumulator<1 , s>( ); }
+
+		constexpr static Line<0> ii;
+		constexpr static Line<0> vv;
+		constexpr static Line<0> xx;
+		constexpr static Line<0> ll;
+		constexpr static Line<0> cc;
+		constexpr static Line<0> dd;
+		constexpr static Line<0> mm;
+		constexpr static Delimiter<1> i;
+		constexpr static Delimiter<5> v;
+		constexpr static Delimiter<10> x;
+		constexpr static Delimiter<50> l;
+		constexpr static Delimiter<100> c;
+		constexpr static Delimiter<500> d;
+		constexpr static Delimiter<1000> m;
+	}
+
+	forceinline static NatString to_string( const Object& obj ) { return obj.ToString( ); }
 }
 
 namespace std
@@ -1280,15 +1353,36 @@ namespace std
 	};
 
 	template<typename T> inline ostream& operator<<( ostream& o , const UC::GCPtr<T>& p )
-	{ return o << p->ToString( ); }
+	{ return o << to_string( *p ); }
 
 	static inline ostream& operator<<( ostream& o , nullptr_t )
 	{ return o << "nullptr"; }
 
 	static inline ostream& operator<<( ostream& o , const std::exception& ex )
-	{ return o << ex.what( ); }
+	{ return o << boost::typeindex::type_id_runtime( ex ).pretty_name( ) << ":" << ex.what( ); }
 
 	static inline ostream& operator<<( ostream& o , const UC::Exception& ex )
-	{ return o << typeid( ex ).name( ) << ":" << ex.Message( ) << endl << "at stack position:" << endl << ex.GetStackTrace( ); }
+	{ return o << boost::typeindex::type_id_runtime( ex ).pretty_name( ) << ":" << ex.Message( ) << endl << "at stack position:" << endl << ex.GetStackTrace( ); }
+
+	static ostream& operator<<( ostream& o , const exception_ptr& ex )
+	{
+		if ( !ex ) { return o << "null exception"; }
+		try
+		{
+			std::rethrow_exception( ex );
+		}
+		catch ( const UC::Exception& ex )
+		{
+			return o << ex;
+		}
+		catch ( const std::exception& ex )
+		{
+			return o << ex;
+		}
+		catch ( ... )
+		{
+			return o << "std::exception_ptr @ " << &ex;
+		}
+	}
 }
 #endif // !__UC__OBJECT__HPP__

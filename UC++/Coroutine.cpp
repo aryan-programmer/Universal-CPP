@@ -5,9 +5,7 @@ namespace UC
 {
 	namespace Coro
 	{
-		void WhenCalledStop::OnUpdate( P<Coroutine> coro ) { Stop( coro ); };
-
-		std::list<P<Coroutine>>& getLst( )
+		std::list<P<Coroutine>>& getLst( ) noexcept
 		{
 			static std::list<P<Coroutine>> lst;
 			return lst;
@@ -39,8 +37,8 @@ namespace UC
 							lst.erase( std::remove_if( lst.begin( ) , lst.end( ) , [ ] ( P<Coroutine>& coro )
 							{
 								if ( !coro )return true;
-								if ( coro->__finished ) coro->__onStop->Eval( );
-								return coro->__finished;
+								if ( coro->FinishedOrFailed( ) ) coro->__onStop->EvalAll( );
+								return coro->FinishedOrFailed( );
 							} ) , lst.end( ) );
 						}
 						catch ( ... ) { }
@@ -48,53 +46,42 @@ namespace UC
 					for ( auto& coroutine : getLst( ) )
 					{
 						bool update = false;
-						if ( !coroutine || coroutine->__paused || coroutine->__finished )continue;
-						if ( coroutine->__instruction )
+						if ( !coroutine || !coroutine->Running( ) )continue;
+						try
 						{
-							if ( coroutine->__instruction->Finished( ) )
+							if ( coroutine->__instruction )
 							{
-								coroutine->__instruction = nullptr;
-								update = true;
+								if ( coroutine->__instruction->Finished( coroutine ) )
+								{
+									coroutine->__instruction = nullptr;
+									update = true;
+								}
 							}
-							else coroutine->__instruction->OnUpdate( coroutine );
-						}
-						//initial update
-						else update = true;
-						if ( update )
-						{
-							if ( coroutine->__finished )continue;
-							try
+							//initial update
+							else update = true;
+							if ( update )
 							{
+								if ( !coroutine->Running( ) )continue;
 								auto& fiber = coroutine->__fiber;
 								if ( fiber( ) )
-								{
-									auto yieldCommand = fiber.Get( );
-
-									if ( !yieldCommand ) continue;
-
-									coroutine->__instruction = yieldCommand;
-								}
+									coroutine->__instruction = fiber.Get( ) | WaitTillUpdate::Make( );
 								else
 								{
-									coroutine->__finished = true;
+									coroutine->__Finish( );
 									continue;
 								}
 							}
-							catch ( ... )
-							{
-								coroutine->__finished = true;
-								throw;
-							}
 						}
+						catch ( ... ) { coroutine->__Fail( ::std::current_exception( ) ); }
 					}
 				}
 				catch ( const UC::Exception& ex )
 				{
-					std::cerr << "Exception of type \"" << typeid( ex ).name( ) << "\" in coroutine on separate thread with message: " << std::endl << ex.what( ) << std::endl << "at stack position:" << std::endl << ex.GetStackTrace( );
+					std::cerr << "Exception of type \"" << boost::typeindex::type_id_runtime( ex ).pretty_name( ) << "\" in coroutine on separate thread with message: " << std::endl << ex.what( ) << std::endl << "at stack position:" << std::endl << ex.GetStackTrace( );
 				}
 				catch ( const std::exception& ex )
 				{
-					std::cerr << "Exception of type \"" << typeid( ex ).name( ) << "\" in coroutine on separate thread with message: \"" << ex.what( ) << "\"." << std::endl;
+					std::cerr << "Exception of type \"" << boost::typeindex::type_id_runtime( ex ).pretty_name( ) << "\" in coroutine on separate thread with message: \"" << ex.what( ) << "\"." << std::endl;
 				}
 				catch ( ... )
 				{
@@ -110,6 +97,6 @@ namespace UC
 			getLst( ).push_back( coroutine );
 			return coroutine;
 		}
-		void Stop( P<Coroutine> coroutine ) { if ( coroutine ) coroutine->__finished = true; }
+		void Stop( P<Coroutine> coroutine ) { if ( coroutine ) coroutine->__Finish( ); }
 	}
 }

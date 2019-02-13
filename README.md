@@ -10,8 +10,6 @@
 ### <span style="color:green">√ Garbage Collection  ← Objective-C</span>
 Like Objective-C, UC++ support s GC, but only ARC (Automatic Reference Counting) style GC is supported, like in Objective-C where ARC is the recommended method.
 
-------
-
 ### <span style="color:green">√ Reflection ← ~~Most~~ <u>***All***</u> languages with automatic garbage collection.</span>
 
 Use `UC::P_Any` variables and `UC::Object::Call` as:
@@ -36,8 +34,6 @@ to create instances of <span style="color:purple">UCInterfaces</span> as
 ```C++
 UC::Object::CreateInstance(?class-name?, {?args?})
 ```
-
-------
 
 ### <span style="color:green">√ Dynamic Typing ← Python</span>
 
@@ -64,8 +60,6 @@ as
 ```C++
 UC::ObjCast<?TypeToCastTo?>(?variable?)
 ```
-
-------
 
 ### <span style="color:green">√ Delegates ← C#</span>
 
@@ -125,8 +119,6 @@ There are 3 core things to 'delegates' or functors
 
    Where <span style="color:green">?function-type?</span> refers to the type of the function it can be `UC::Function<TReturn, TParameters...>` or a Function type alias. <span style="color:green">?function/function-object/lambda/closure to-make-from?</span> refers to exactly what the name says.
 
-------
-
 ### <span style="color:green">√ Events ← Qt</span>
 
 Events are technically from C#. However they are also implemented in Qt (& Boost), but there they are called as signals and the functions which register to them are called slots. In C#, signals and slots are referred to as events and delegates. In UC++, signals and slots are referred to as events and functors (would you rather prefer "Group of UC++ GC pointer to function object" and "UC++ GC pointer to function object").
@@ -149,15 +141,11 @@ If you want to get the return value of all the functions in a `UC::NatVector<TRe
 
 An event is a functor, i.e. you can chain events, i.e. subscribe an event to an event.
 
-------
-
 ### <span style="color:gray">√ Singleton ← Kotlin</span>
 
 The singleton pattern comes inbuilt with Kotlin, UC++ also provides an inbuilt singleton pattern. 
 
 For more information look to the documentation on the macro <span style="color:purple">UC_IsSingleton</span>.
-
---------
 
 ### <span style="color:green">√ Generators ← C#</span>
 
@@ -167,15 +155,15 @@ From [Wikipedia:Generator (computer programming)](https://en.wikipedia.org/wiki/
 
 The generators in UC++ do fulfil the above requirements but UC++ generators can do more, much. Look to the documentation for more info.
 
+### <span style="color:darkgreen">√ Coroutines ← Unity</span>
 
+A similar system to the one provided by Unity by UC++, though there are some differences.
 
-------
+Look to the documentation for more info.
 
 ### <span style="color:blue">√ Multiple Class Inheritance ← C++</span>
 
 From C++!!
-
-------
 
 ### <span style="color:blue">√ Block Structured Programming ← Swift</span>
 Already in C++.

@@ -179,6 +179,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\DOCUMENTATION.md" />
     <None Include="..\README.md" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
