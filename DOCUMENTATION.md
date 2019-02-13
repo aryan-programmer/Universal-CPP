@@ -1,4 +1,4 @@
-![UC++ Logo in Iosevka SS03](.\Logo.png)
+![UC++ Logo in Iosevka SS03](Logo.png)
 
 # UC++ Documentation
 
