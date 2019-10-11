@@ -14,11 +14,9 @@
 
 - All place holder types & variables can have a prefix number or alphanumeric string if used more than once.
 
-- A **<u>_context-sensitive_</u>** place holder is a string of characters wrapped in question marks(??), e.g. ?name?. They can appear anywhere and context-sensitive. They may be color coded as <span style="color:green">green</span>, if possible.
+- A **<u>_context-sensitive_</u>** place holder is a string of characters wrapped in question marks(??), e.g. ?name?. They can appear anywhere and are context-sensitive. They may be color coded as <span style="color:green">green</span>, if possible.
 
 - Macros are color coded in <span style="color:purple">purple</span>, if possible.
-
-- 2 fictional type(`typedef/using` declaration)s P\_<span style="color:green">*T*</span> & W\_<span style="color:green">*T*</span> will be repeatedly used, even when they don't exist, wherein P\_<span style="color:green">*T*</span> means `UC::GCPtr<T>` & W\_<span style="color:green">*T*</span> means `UC::WeakPtr<T>`.
 
 - Whenever a <span style="color:purple">UCInterface</span> say, `T`, is referred in the documentation it always means `UC::GCPtr<T>`, however , in case `T` is used in `T::?some-method-or-variable?`, a declaration or definition, as a template parameter or it's explicitly specified that `T` refers to the actual type then the actual type `T` is referred to being not `UC::GCPtr<T>`.
 
@@ -771,22 +769,10 @@ There are 3 core things to 'delegates' or functors
    UC::FuncFrom<?name?>
    ```
 
-   To get a `UC::P_Function` from the alias use:
-
-   ```C++
-   UC::P_FuncFrom<?name?>
-   ```
-
    To get a `UC::Event` (not `UC::GCPtr<UC::Event>`) from the alias use:
 
    ```C++
    UC::EventFrom<?name?>
-   ```
-
-   To get a `UC::P_Event` from the alias use:
-
-   ```C++
-   UC::P_EventFrom<?name?>
    ```
 
 3. `UC::MakeFunc<TFunction, TRealFunction>(TRealFunction&& func)`

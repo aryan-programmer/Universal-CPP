@@ -17,13 +17,13 @@ namespace UC
 {
 	struct VoidEmul final
 	{
-		forceinline static VoidEmul& I( )
+		forceinline static VoidEmul& I()
 		{
 			static VoidEmul s;
 			return s;
 		};
 
-		forceinline VoidEmul( ) { }
+		forceinline VoidEmul() { }
 		forceinline VoidEmul( nullptr_t ) { }
 		forceinline VoidEmul( int16_t ) { }
 		forceinline VoidEmul( int32_t ) { }
@@ -32,17 +32,17 @@ namespace UC
 		forceinline VoidEmul& operator=( int16_t ) { return *this; }
 		forceinline VoidEmul& operator=( int32_t ) { return *this; }
 		forceinline VoidEmul& operator=( int64_t ) { return *this; }
-		forceinline operator nullptr_t( ) { return nullptr; }
-		forceinline operator int16_t( ) { return 0i16; }
-		forceinline operator int32_t( ) { return 0i32; }
-		forceinline operator int64_t( ) { return 0i64; }
+		forceinline operator nullptr_t() { return nullptr; }
+		forceinline operator int16_t() { return 0i16; }
+		forceinline operator int32_t() { return 0i32; }
+		forceinline operator int64_t() { return 0i64; }
 	};
 
 	namespace _Detail
 	{
 		struct makes_noncopyable
 		{
-			makes_noncopyable( ) = default;
+			makes_noncopyable() = default;
 			makes_noncopyable( makes_noncopyable&& ) = default;
 			makes_noncopyable& operator =( makes_noncopyable&& ) = default;
 		};
@@ -54,7 +54,7 @@ namespace UC
 			{
 				virtual bool operator()( T& , TInp... ) = 0;
 
-				virtual ~_1( ) = default;
+				virtual ~_1() = default;
 			};
 
 			template<typename I>
@@ -70,8 +70,8 @@ namespace UC
 
 			template<typename I , typename = std::enable_if_t<!std::is_same_v<boost::remove_cv_ref_t<I> , _GeneratorFuncHld>>>
 			_GeneratorFuncHld( I&& i ) : ptr( new _2<I>( std::move( i ) ) ) { }
-			_GeneratorFuncHld( ) : ptr( ) { }
-			_GeneratorFuncHld( nullptr_t ) : ptr( ) { }
+			_GeneratorFuncHld() : ptr() { }
+			_GeneratorFuncHld( nullptr_t ) : ptr() { }
 
 			_GeneratorFuncHld( _GeneratorFuncHld&& ) = default;
 			_GeneratorFuncHld& operator =( _GeneratorFuncHld&& ) = default;
@@ -93,8 +93,8 @@ namespace UC
 		struct ExceptionDetails
 		{
 			bool isInTry = false;
-			LineRecordType curr {};
-			std::exception_ptr p {};
+			LineRecordType curr{};
+			std::exception_ptr p{};
 		};
 	};
 
@@ -105,25 +105,25 @@ namespace UC
 		Internal ival;
 		T val;
 	public:
-		Generator( ) :ival( ) { }
+		Generator() :ival() { }
 		Generator( Internal&& ival2 ) :ival( std::move( ival2 ) ) { }
 		Generator& operator=( Internal&& ival2 ) { ival = std::move( ival2 ); }
 		Generator( Generator&& g ) :ival( std::move( g.ival ) ) { }
 		Generator& operator=( Generator&& g ) { ival = std::move( g.ival ); }
 
-		explicit operator bool( ) { return ival != nullptr; }
+		explicit operator bool() { return ival != nullptr; }
 		Generator& operator()( TInp... params )
 		{
 			if ( ival != nullptr && !( ival( val , params... ) ) ) { ival = nullptr; };
 			return *this;
 		}
-		___UC_NODISCARD___ const T& operator*( ) const { return val; }
-		___UC_NODISCARD___ const T& Get( ) const { return val; }
+		___UC_NODISCARD___ const T& operator*() const { return val; }
+		___UC_NODISCARD___ const T& Get() const { return val; }
 
 		bool operator ==( nullptr_t ) const { return ( ival == nullptr ); }
 		bool operator !=( nullptr_t ) const { return ( ival != nullptr ); }
-		template<typename Internal2> bool operator ==( const Generator<Internal2 , T , TInp...>& r ) const { return ( ival == r.ival ); }
-		template<typename Internal2> bool operator !=( const Generator<Internal2 , T , TInp...>& r ) const { return ( ival != r.ival ); }
+		template<typename Internal2> bool operator ==( const Generator<Internal2 , T , TInp...> & r ) const { return ( ival == r.ival ); }
+		template<typename Internal2> bool operator !=( const Generator<Internal2 , T , TInp...> & r ) const { return ( ival != r.ival ); }
 	};
 
 	template<typename T>
@@ -131,35 +131,35 @@ namespace UC
 	{
 		using Internal = _Detail::_GeneratorFuncHld<T>;
 		Internal ival;
-		void getVal( ) { if ( ival != nullptr && !( ival( val ) ) ) { ival = nullptr; } }
+		void getVal() { if ( ival != nullptr && !( ival( val ) ) ) { ival = nullptr; } }
 		T val;
 	public:
 		struct iterator
 		{
 			using iterator_category = std::input_iterator_tag;
 			using value_type = T;
-			using pointer = const T *;
-			using reference = const T&;
+			using pointer = const T*;
+			using reference = const T &;
 
 			Generator* gen;
 
-			iterator( ) :gen( nullptr ) { }
+			iterator() :gen( nullptr ) { }
 			iterator( Generator* gen ) :gen( gen ) { }
 
-			___UC_NODISCARD___ const T& operator*( ) const { return gen->val; }
-			___UC_NODISCARD___ const T* operator->( ) const { return std::addressof( gen->val ); }
+			___UC_NODISCARD___ const T& operator*() const { return gen->val; }
+			___UC_NODISCARD___ const T* operator->() const { return std::addressof( gen->val ); }
 
-			iterator& operator++( ) { getVal( ); return *this; }
+			iterator& operator++() { getVal(); return *this; }
 
 			bool operator ==( const iterator& r ) const
 			{ return ( gen == &r.gen && gen->ival == &r.gen->ival ); }
-			bool operator !=( const iterator& r ) const
+			bool operator !=( const iterator & r ) const
 			{ return ( gen != &r.gen || gen->ival != &r.gen->ival ); }
 			bool operator ==( nullptr_t ) const { return ( gen == nullptr && gen->ival == nullptr ); }
 			bool operator !=( nullptr_t ) const { return ( gen != nullptr || gen->ival != nullptr ); }
 
 		private:
-			void getVal( )
+			void getVal()
 			{
 				if ( gen != nullptr && gen->ival != nullptr && !( gen->ival( gen->val ) ) )
 				{
@@ -169,23 +169,23 @@ namespace UC
 			}
 		};
 
-		iterator begin( ) { return iterator( !ival != nullptr ? nullptr : this ); }
-		iterator end( ) { return iterator( ); }
+		iterator begin() { return iterator( !ival != nullptr ? nullptr : this ); }
+		iterator end() { return iterator(); }
 
-		Generator( ) :ival( ) { }
-		Generator( Internal&& ival2 ) :ival( std::move( ival2 ) ) { }
-		Generator& operator=( Internal&& ival2 ) { ival = std::move( ival2 ); }
-		Generator( Generator&& g ) :ival( std::move( g.ival ) ) { }
-		Generator& operator=( Generator&& g ) { ival = std::move( g.ival ); }
+		Generator() :ival() { }
+		Generator( Internal && ival2 ) :ival( std::move( ival2 ) ) { }
+		Generator& operator=( Internal && ival2 ) { ival = std::move( ival2 ); }
+		Generator( Generator && g ) :ival( std::move( g.ival ) ) { }
+		Generator& operator=( Generator && g ) { ival = std::move( g.ival ); }
 
-		explicit operator bool( ) { return ival != nullptr; }
-		Generator& operator()( ) { getVal( ); return *this; }
-		___UC_NODISCARD___ const T& operator*( ) const { return val; }
-		___UC_NODISCARD___ const T& Get( ) const { return val; }
+		explicit operator bool() { return ival != nullptr; }
+		Generator& operator()() { getVal(); return *this; }
+		___UC_NODISCARD___ const T& operator*() const { return val; }
+		___UC_NODISCARD___ const T& Get() const { return val; }
 		bool operator ==( nullptr_t ) const { return ( ival == nullptr ); }
 		bool operator !=( nullptr_t ) const { return ( ival != nullptr ); }
-		template<typename Internal2> bool operator ==( const Generator<Internal2 , T>& r ) const { return ( ival == r.ival ); }
-		template<typename Internal2> bool operator !=( const Generator<Internal2 , T>& r ) const { return ( ival != r.ival ); }
+		template<typename Internal2> bool operator ==( const Generator<Internal2 , T> & r ) const { return ( ival == r.ival ); }
+		template<typename Internal2> bool operator !=( const Generator<Internal2 , T> & r ) const { return ( ival != r.ival ); }
 	};
 
 	UCException( ContinueStatementInSwitchStatementInAGenerator );

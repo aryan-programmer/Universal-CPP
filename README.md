@@ -80,7 +80,7 @@ There are 3 core things to 'delegates' or functors
    They are defined as aliases for **<u>_function types_</u>**, not **<u>_functor types_</u>**. Define one as
 
    ```C++
-   using ?name? = ?return-type?(*)(?parameter-types?...)
+   typedef ?return-type? ?name?(?parameter-types?...)
    ```
 
    Where <span style="color:green">?name?</span> & <span style="color:green">?return-type?</span> refer to the name of the alias & return type respectively, and <span style="color:green">?parameter-types...?</span> refers to 0 or more parameters.
@@ -91,22 +91,10 @@ There are 3 core things to 'delegates' or functors
    UC::FuncFrom<?name?>
    ```
 
-   To get a `UC::P_Function` from the alias use:
-
-   ```C++
-   UC::P_FuncFrom<?name?>
-   ```
-
    To get a `UC::Event` from the alias use:
 
    ```C++
    UC::EventFrom<?name?>
-   ```
-
-   To get a `UC::P_Event` from the alias use:
-
-   ```C++
-   UC::P_EventFrom<?name?>
    ```
 
 3. `UC::MakeFunc<TFunction, TRealFunction>(TRealFunction&& func)`
@@ -170,7 +158,7 @@ Already in C++.
 
 
 
-# [Documentation](.\DOCUMENTATION.md)
+# [Documentation](./DOCUMENTATION.md)
 
 
 

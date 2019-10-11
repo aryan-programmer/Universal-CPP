@@ -53,7 +53,7 @@ virtual ::UC::P<Object> Call( const ::UC::NatString& fname, const ::UC::NatOVect
 #define UC_InheritsNativeClasses(...) UC_InheritsNativeClasses(__VA_ARGS__)
 #define UC_InheritsNoNativeClasses
 //#undef UC_InheritsUCClasses
-// , (...Inheritance...), 
+// , (...Inheritance...),
 
 // (
 #define __UCWriteEachMaker(r, data, i, elem) data(__UCMethodParams(BOOST_PP_TUPLE_TO_LIST(elem)));
@@ -230,7 +230,6 @@ Name(const ::UC::NatString& str)noexcept:base(str){}\
 #define UCCtor(...) __UCCTor((__VA_ARGS__))
 
 #define UCRegister(name) name::__classRegisterer name::__classRegistererInstance{}
-
 
 #define UCAsNotNull(v) ::UC::asNotNull(v, "Variable: \"" __ToString(v) "\" is nullptr." )
 

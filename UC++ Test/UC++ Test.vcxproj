@@ -76,7 +76,7 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>E:\CPPInstallations\co2\include;$(BOOST);$(ProjectDir)..\UC++;$(IncludePath)</IncludePath>
+    <IncludePath>$(BOOST);$(ProjectDir)..\UC++;$(IncludePath)</IncludePath>
     <LibraryPath>$(BOOST)\lib64-msvc-14.1;$(ProjectDir)..\$(IntDir);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -86,12 +86,12 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>E:\CPPInstallations\co2\include;$(BOOST);$(ProjectDir)..\UC++;$(IncludePath)</IncludePath>
+    <IncludePath>$(BOOST);$(ProjectDir)..\UC++;$(IncludePath)</IncludePath>
     <LibraryPath>$(BOOST)\lib64-msvc-14.1;$(ProjectDir)..\$(IntDir);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>E:\CPPInstallations\co2\include;$(BOOST);$(ProjectDir)..\UC++;$(IncludePath)</IncludePath>
+    <IncludePath>$(BOOST);$(ProjectDir)..\UC++;$(IncludePath)</IncludePath>
     <LibraryPath>$(BOOST)\lib64-msvc-14.1;$(ProjectDir)..\$(IntDir);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
